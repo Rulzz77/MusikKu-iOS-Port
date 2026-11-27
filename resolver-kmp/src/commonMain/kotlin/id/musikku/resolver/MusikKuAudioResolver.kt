@@ -198,11 +198,6 @@ class MusikKuAudioResolver {
     }
 }
 
-private data class FailedStreamClients(
-    val clients: Set<String>,
-    val failedAtMs: Long
-)
-
 private const val STREAM_PROFILE_FAILURE_TTL_MS = 10 * 60 * 1000L
 private const val MAX_FAILED_STREAM_ENTRIES = 256
 
