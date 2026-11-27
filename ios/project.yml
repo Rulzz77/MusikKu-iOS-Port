@@ -31,3 +31,25 @@ targets:
         INFOPLIST_FILE: Support/Info.plist
         CODE_SIGN_STYLE: Automatic
         ENABLE_PREVIEWS: YES
+  MusikKuTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: MusikKu
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: id.musikku.ios.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  MusikKu:
+    build:
+      targets:
+        MusikKu: all
+        MusikKuTests: [test]
+    test:
+      config: Debug
+      targets:
+        - MusikKuTests
