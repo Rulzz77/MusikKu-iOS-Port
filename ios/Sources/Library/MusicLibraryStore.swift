@@ -181,7 +181,7 @@ final class MusicLibraryStore: ObservableObject {
         let artist = rawArtist.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name.count <= 40,
               artist.count <= 80,
-              minimumPlays in 1...50,
+              minimumPlays >= 1, minimumPlays <= 50,
               smartPlaylists.count < 20 else { return false }
 
         smartPlaylists.insert(
