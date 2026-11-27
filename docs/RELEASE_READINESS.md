@@ -26,7 +26,7 @@ This document records what must be completed before merging PR #1 and distributi
 - [ ] Set the release marketing version and monotonically increasing build number
 - [ ] Create the App Store Connect app record and configure SKU, age rating, category, pricing/territories and availability
 - [ ] Provide app name, subtitle, description, keywords, support URL, marketing URL, screenshots and 1024px store artwork
-- [ ] Publish an accessible privacy policy and link it in App Store Connect and inside the app
+- [ ] Review and complete the [Privacy Policy draft](../PRIVACY_POLICY.md), replace developer/contact placeholders, publish it at a stable public URL, and link it in App Store Connect and inside the app
 - [ ] Complete App Privacy disclosures for the app and all third-party services/SDKs based on the actual data transmitted and retained
 - [ ] Confirm privacy manifest coverage for every linked SDK/framework; update it if dependencies access additional required-reason APIs
 - [ ] Archive and export a signed Release build; validate with Xcode Organizer/Transporter and TestFlight

@@ -37,7 +37,7 @@ GitHub Actions builds the InnerTubeX iOS XCFramework, generates the Xcode projec
 
 The unsigned IPA is for personal device testing with Sideloadly, not an App Store/TestFlight signed release. The Appetize ZIP is an iOS Simulator build; Appetize does not accept the IPA, and Appetize's iOS simulator does not provide audible audio output.
 
-The latest playback fallback, full-screen root correction, AppIcon and privacy-manifest commits are newer than run #153 and still require a fresh successful CI build. Even then, live Webpage Attestation, PoToken generation, YouTube stream extraction and audible playback must be verified on a physical iPhone before release. See [Release Readiness](docs/RELEASE_READINESS.md) for signing, privacy, licensing and content-rights requirements.
+The latest playback fallback, full-screen root correction, AppIcon and privacy-manifest commits are newer than run #153 and still require a fresh successful CI build. Even then, live Webpage Attestation, PoToken generation, YouTube stream extraction and audible playback must be verified on a physical iPhone before release. See [Release Readiness](docs/RELEASE_READINESS.md) for signing, privacy, licensing and content-rights requirements. A [Privacy Policy draft](PRIVACY_POLICY.md) has been prepared, but it still contains contact/identity placeholders and must be reviewed and published before release.
 
 ## Requirements for local build
 
