@@ -158,14 +158,17 @@ actor LyricsService {
                 durationSeconds: durationSeconds,
                 candidateTitle: candidate["track_name"] as? String,
                 candidateArtist: candidate["artist_name"] as? String,
-                candidateDuration: candidate["duration"] as? Double
+                candidateDuration: Self.jsonDouble(candidate["duration"])
             ) && candidate["isrc"] as? String != nil &&
                 candidate["lyricsUrl"] as? String != nil
         }
 
-        guard let matched,
-              let lyricsURLString = matched["lyricsUrl"] as? String,
+        guard let matched else { return nil }
+        guard let lyricsURLString = matched["lyricsUrl"] as? String,
               let lyricsURL = URL(string: lyricsURLString),
+              lyricsURL.scheme?.lowercased() == "https",
+              let host = lyricsURL.host?.lowercased(),
+              host == "lrc.red" || host == "lyrics-api.binimum.org",
               Self.isValidISRC(matched["isrc"] as? String),
               let ttml = await getText(
                 lyricsURL,
@@ -197,27 +200,42 @@ actor LyricsService {
             return nil
         }
 
-        let matched = hits
-            .filter { hit in
-                Self.matches(
-                    title: title,
-                    artist: artist,
-                    durationSeconds: durationSeconds,
-                    candidateTitle: hit["title"] as? String,
-                    candidateArtist: hit["artist"] as? String,
-                    candidateDuration: hit["duration"] as? Double
-                ) && Self.isValidISRC(hit["isrc"] as? String)
-            }
-            .min {
-                abs(($0["duration"] as? Double ?? Double(durationSeconds ?? 0))
-                    - Double(durationSeconds ?? 0))
-                <
-                abs(($1["duration"] as? Double ?? Double(durationSeconds ?? 0))
-                    - Double(durationSeconds ?? 0))
+        var bestHit: [String: Any]?
+        var bestDistance = Double.greatestFiniteMagnitude
+        let expectedDuration = Double(durationSeconds ?? 0)
+
+        for hit in hits {
+            guard Self.matches(
+                title: title,
+                artist: artist,
+                durationSeconds: durationSeconds,
+                candidateTitle: hit["title"] as? String,
+                candidateArtist: hit["artist"] as? String,
+                candidateDuration: Self.jsonDouble(hit["duration"])
+            ), Self.isValidISRC(hit["isrc"] as? String) else {
+                continue
             }
 
-        guard let isrc = matched?["isrc"] as? String,
-              let lyricsURL = URL(string: "https://lrc.red/s/\(isrc.uppercased()).ttml"),
+            let actualDuration = Self.jsonDouble(hit["duration"])
+            let distance: Double
+            if expectedDuration > 0, let actualDuration, actualDuration > 0 {
+                distance = abs(actualDuration - expectedDuration)
+            } else {
+                distance = 0
+            }
+
+            if distance < bestDistance {
+                bestDistance = distance
+                bestHit = hit
+            }
+        }
+
+        guard let matchedHit = bestHit,
+              let isrc = matchedHit["isrc"] as? String else {
+            return nil
+        }
+        let urlString = "https://lrc.red/s/\(isrc.uppercased()).ttml"
+        guard let lyricsURL = URL(string: urlString),
               let ttml = await getText(
                 lyricsURL,
                 accept: "application/xml, text/xml, text/plain, */*"
@@ -414,22 +432,46 @@ actor LyricsService {
         durationSeconds: Int?,
         candidate: LrcLibTrack
     ) -> Bool {
-        let wantedTitle = identity(title)
-        let foundTitle = identity(cleanTitle(candidate.trackName ?? ""))
+        matches(
+            title: title,
+            artist: artist,
+            durationSeconds: durationSeconds,
+            candidateTitle: candidate.trackName,
+            candidateArtist: candidate.artistName,
+            candidateDuration: candidate.duration
+        )
+    }
+
+    private static func matches(
+        title: String,
+        artist: String,
+        durationSeconds: Int?,
+        candidateTitle: String?,
+        candidateArtist: String?,
+        candidateDuration: Double?
+    ) -> Bool {
+        let wantedTitle = identity(cleanTitle(title))
+        let foundTitle = identity(cleanTitle(candidateTitle ?? ""))
         guard !wantedTitle.isEmpty, wantedTitle == foundTitle else { return false }
 
         let wantedArtists = artistNames(cleanArtist(artist))
-        let foundArtists = artistNames(cleanArtist(candidate.artistName ?? ""))
+        let foundArtists = artistNames(cleanArtist(candidateArtist ?? ""))
         guard !wantedArtists.isEmpty, !foundArtists.isEmpty,
               !wantedArtists.isDisjoint(with: foundArtists) else {
             return false
         }
 
         if let durationSeconds, durationSeconds > 0,
-           let candidateDuration = candidate.duration, candidateDuration > 0 {
+           let candidateDuration, candidateDuration > 0 {
             guard abs(candidateDuration - Double(durationSeconds)) <= 5 else { return false }
         }
         return true
+    }
+
+    private static func jsonDouble(_ value: Any?) -> Double? {
+        if let number = value as? NSNumber { return number.doubleValue }
+        if let string = value as? String { return Double(string) }
+        return nil
     }
 
     private static func cleanTitle(_ value: String) -> String {
