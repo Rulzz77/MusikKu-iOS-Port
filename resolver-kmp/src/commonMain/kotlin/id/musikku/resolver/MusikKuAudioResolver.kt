@@ -20,8 +20,9 @@ import kotlinx.serialization.json.Json
  * disabled because AVPlayer consumes direct HTTP audio assets.
  *
  * Remote player configs are cached persistently on iOS so cipher changes can
- * be refreshed without requiring an app update. This resolver still has no
- * browser-backed PoToken provider; attestation-gated streams may be refused.
+ * be refreshed without requiring an app update. The platform supplies an
+ * initial WEB_BOTGUARD token provider; attestation-gated streams may still be
+ * refused when the live challenge cannot be initialized or completed.
  */
 class MusikKuAudioResolver {
     private val httpClient: HttpClient = createResolverHttpClient()
