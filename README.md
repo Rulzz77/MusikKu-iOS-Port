@@ -29,9 +29,10 @@ Local playlists, favorites, search history, listening stats and Smart Playlist r
 
 GitHub Actions builds the InnerTubeX iOS XCFramework, generates the Xcode project, compiles and launches the iOS Simulator app, runs unit tests, packages a separate Simulator ZIP for Appetize, and exports an unsigned arm64 IPA for physical-iPhone testing.
 
-- [Run #140](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45994974904) succeeded at commit `8c5ee75`: all 12 workflow steps passed, including Simulator build and launch, **5 unit tests (0 failures)**, and unsigned arm64 iPhone IPA packaging.
-- [Download the unsigned IPA artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45994974904/artifacts/15195939027) (3,574,899 bytes; SHA-256 `799f58335fc4c48403cb7cdb927ab9540bc330a909b648759c9b56d720f10aa3`; expires 4 December 2026).
-- The workflow now also creates a distinct **MusikKu-iOS-Simulator-Appetize** ZIP artifact for browser-based testing from Windows. Its availability is verified by the next CI run after this workflow change. See [Test from Windows with Appetize](docs/APPETIZE_WINDOWS_TESTING.md).
+- [Run #142](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45999374004) succeeded at commit `242a8e8`: all 14 workflow steps passed, including Simulator build and launch, **5 unit tests (0 failures)**, Appetize Simulator packaging/upload, and unsigned arm64 iPhone IPA packaging.
+- [Download the Appetize Simulator artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45999374004/artifacts/15198806531) (4,429,251 bytes; SHA-256 `bcd67f767b62131d408c28fa702d80803f96c0fbc81667a0dbcbd77f8bb47ac9`; expires 4 December 2026). Download this artifact for Windows testing.
+- [Download the unsigned IPA artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45999374004/artifacts/15199215916) (3,574,894 bytes; SHA-256 `0dd644390e2b1b5d95684e96f3c65c0d3554620feef54a0c47109f586f11d50f`; expires 4 December 2026).
+- See [Test from Windows with Appetize](docs/APPETIZE_WINDOWS_TESTING.md) for upload instructions.
 
 The unsigned IPA is for personal device testing with Sideloadly, not an App Store/TestFlight signed release. The Appetize ZIP is an iOS Simulator build; Appetize does not accept the IPA.
 
