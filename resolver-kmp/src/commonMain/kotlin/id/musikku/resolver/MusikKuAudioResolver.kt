@@ -11,11 +11,17 @@ import com.metrolist.innertubex.extraction.YtConfigParserImpl
 import com.metrolist.innertubex.extraction.generateClientPlaybackNonce
 import com.metrolist.innertubex.models.YouTubeLocale
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.time.Clock
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * Audio-only resolver shared with the Android MusikKu implementation through
@@ -36,8 +42,9 @@ class MusikKuAudioResolver {
     )
     private val cipherService = YouTubeCipherService(httpClient, configStore)
     private val configParser = YtConfigParserImpl(httpClient, innerTube, configStore)
-    private val failedClientMutex = Mutex()
-    private val failedStreamClients = mutableMapOf<String, FailedStreamClients>()
+    private val failedProfileMutex = Mutex()
+    private val failedStreamProfiles = mutableMapOf<String, MutableMap<String, TimeMark>>()
+    private val recoveryScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val tokenProvider = createPlatformTokenProvider()
     private val extractor = InnerTubeExtractor(
         configParser = configParser,
@@ -127,45 +134,58 @@ class MusikKuAudioResolver {
         )
     }
 
-    /** Exclude an InnerTubeX profile after AVPlayer rejects its media URL so a retry can try another profile. */
+    /**
+     * Records a profile refused by AVPlayer. InnerTubeX excludes profile IDs (not display client names)
+     * on the next extraction, matching the Android resolver's source-failure handling.
+     */
     @Throws(Exception::class)
     suspend fun markStreamProfileFailed(videoId: String, profileId: String) {
         require(videoId.matches(Regex("^[A-Za-z0-9_-]{11}$"))) { "Invalid YouTube video ID" }
         val safeProfileId = profileId.trim()
-        require(safeProfileId.isNotEmpty() && safeProfileId.length <= 128) { "Invalid stream profile ID" }
+        require(safeProfileId.isNotEmpty() && safeProfileId.length <= 128) {
+            "Invalid stream profile ID"
+        }
 
-        failedClientMutex.withLock {
-            val now = Clock.System.now().toEpochMilliseconds()
-            val existing = failedStreamClients[videoId]
-                ?.takeIf { now - it.failedAtMs in 0L until STREAM_CLIENT_FAILURE_TTL_MS }
-            failedStreamClients[videoId] = FailedStreamClients(
-                clients = existing?.clients.orEmpty() + safeProfileId,
-                failedAtMs = now
-            )
+        failedProfileMutex.withLock {
+            val profiles = failedStreamProfiles.getOrPut(videoId) { linkedMapOf() }
+            profiles.entries.removeAll {
+                it.value.elapsedNow().inWholeMilliseconds >= STREAM_PROFILE_FAILURE_TTL_MS
+            }
+            profiles[safeProfileId] = TimeSource.Monotonic.markNow()
 
-            if (failedStreamClients.size > MAX_FAILED_STREAM_ENTRIES) {
-                failedStreamClients.entries.removeAll {
-                    now - it.value.failedAtMs !in 0L until STREAM_CLIENT_FAILURE_TTL_MS
+            failedStreamProfiles.entries.removeAll { (_, entries) ->
+                entries.entries.removeAll {
+                    it.value.elapsedNow().inWholeMilliseconds >= STREAM_PROFILE_FAILURE_TTL_MS
                 }
-                while (failedStreamClients.size > MAX_FAILED_STREAM_ENTRIES) {
-                    failedStreamClients.remove(failedStreamClients.keys.first())
-                }
+                entries.isEmpty()
+            }
+            while (failedStreamProfiles.size > MAX_FAILED_STREAM_ENTRIES) {
+                failedStreamProfiles.remove(failedStreamProfiles.keys.first())
             }
         }
-    }
 
-    private suspend fun failedStreamClients(videoId: String): Set<String> = failedClientMutex.withLock {
-        val now = Clock.System.now().toEpochMilliseconds()
-        val entry = failedStreamClients[videoId] ?: return@withLock emptySet()
-        if (now - entry.failedAtMs !in 0L until STREAM_CLIENT_FAILURE_TTL_MS) {
-            failedStreamClients.remove(videoId)
-            emptySet()
-        } else {
-            entry.clients
+        // Android refreshes cipher data after a media URL is refused. Run this off the playback/UI path.
+        recoveryScope.launch {
+            runCatching { cipherService.refreshAfterStreamRejection() }
         }
     }
 
+    private suspend fun failedStreamClients(videoId: String): Set<String> =
+        failedProfileMutex.withLock {
+            val profiles = failedStreamProfiles[videoId] ?: return@withLock emptySet()
+            profiles.entries.removeAll {
+                it.value.elapsedNow().inWholeMilliseconds >= STREAM_PROFILE_FAILURE_TTL_MS
+            }
+            if (profiles.isEmpty()) {
+                failedStreamProfiles.remove(videoId)
+                emptySet()
+            } else {
+                profiles.keys.toSet()
+            }
+        }
+
     fun close() {
+        recoveryScope.cancel()
         innerTube.close()
         httpClient.close()
     }
@@ -183,10 +203,13 @@ private data class FailedStreamClients(
     val failedAtMs: Long
 )
 
-private const val STREAM_CLIENT_FAILURE_TTL_MS = 10 * 60 * 1000L
+private const val STREAM_PROFILE_FAILURE_TTL_MS = 10 * 60 * 1000L
 private const val MAX_FAILED_STREAM_ENTRIES = 256
 
-/** Mirrors the Android resolver: use embedded player config if the remote config fetch fails. *String?,
+data class ResolvedAudioStream(
+    val url: String,
+    val mimeType: String?,
+    val codecs: String?,
     val bitrate: Int?,
     val headersJson: String,
     val clientName: String,
