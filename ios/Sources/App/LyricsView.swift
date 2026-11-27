@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 private struct LyricsTranslationTarget: Identifiable, Hashable {
     let code: String
@@ -20,6 +21,32 @@ private struct LyricsTranslationTarget: Identifiable, Hashable {
     ]
 }
 
+extension UTType {
+    static let musikKuTTML = UTType(importedAs: "org.musikku.ttml", conformingTo: .xml)
+}
+
+struct LyricsTTMLFile: FileDocument {
+    static var readableContentTypes: [UTType] { [.musikKuTTML, .xml, .plainText] }
+    static var writableContentTypes: [UTType] { [.musikKuTTML, .xml] }
+
+    let data: Data
+
+    init(data: Data) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self.data = data
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
+}
+
 struct LyricsSheet: View {
     @EnvironmentObject private var playback: PlaybackManager
     @Environment(\.dismiss) private var dismiss
@@ -31,6 +58,10 @@ struct LyricsSheet: View {
     @State private var showingTranslation = false
     @State private var isTranslating = false
     @State private var translationError: String?
+    @State private var fileError: String?
+    @State private var isImportingTTML = false
+    @State private var isExportingTTML = false
+    @State private var exportFile: LyricsTTMLFile?
     @State private var translationTarget = UserDefaults.standard.string(forKey: "musikku.lyrics.translation-target.v1") ?? "id"
     @State private var isLoading = true
 
@@ -96,10 +127,22 @@ struct LyricsSheet: View {
                                 Label("Tampilkan lirik asli", systemImage: "text.alignleft")
                             }
                         }
+                        Divider()
+                        Button {
+                            isImportingTTML = true
+                        } label: {
+                            Label("Impor file TTML", systemImage: "square.and.arrow.down")
+                        }
+                        Button {
+                            Task { await prepareTTMLExport() }
+                        } label: {
+                            Label("Ekspor ke TTML", systemImage: "square.and.arrow.up")
+                        }
+                        .disabled(document == nil || isLoading)
                     } label: {
-                        Image(systemName: "translate")
+                        Image(systemName: "ellipsis.circle")
                     }
-                    .accessibilityLabel("Terjemahkan lirik")
+                    .accessibilityLabel("Menu lirik")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Tutup") { dismiss() }
@@ -113,6 +156,53 @@ struct LyricsSheet: View {
             UserDefaults.standard.set(newValue, forKey: "musikku.lyrics.translation-target.v1")
             showingTranslation = false
             translationError = nil
+        }
+        .fileImporter(
+            isPresented: $isImportingTTML,
+            allowedContentTypes: [.musikKuTTML, .xml, .plainText],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                let didStartAccessing = url.startAccessingSecurityScopedResource()
+                defer {
+                    if didStartAccessing { url.stopAccessingSecurityScopedResource() }
+                }
+                do {
+                    let data = try Data(contentsOf: url)
+                    Task {
+                        guard let imported = await LyricsService.shared.importTTML(
+                            data,
+                            sourceName: url.deletingPathExtension().lastPathComponent
+                        ) else {
+                            fileError = "File tidak valid atau tidak berisi baris TTML yang dapat dibaca."
+                            return
+                        }
+                        document = imported
+                        translatedDocument = nil
+                        showingTranslation = false
+                        translationError = nil
+                        fileError = nil
+                    }
+                } catch {
+                    fileError = "File TTML tidak dapat dibaca: (error.localizedDescription)"
+                }
+            case .failure(let error):
+                fileError = "Impor TTML dibatalkan atau gagal: (error.localizedDescription)"
+            }
+        }
+        .fileExporter(
+            isPresented: $isExportingTTML,
+            document: exportFile,
+            contentType: .musikKuTTML,
+            defaultFilename: "(Self.safeFileName(track.title))-lyrics"
+        ) { result in
+            if case .failure(let error) = result {
+                fileError = "Ekspor TTML gagal: (error.localizedDescription)"
+            } else {
+                fileError = nil
+            }
         }
     }
 
@@ -159,6 +249,13 @@ struct LyricsSheet: View {
 
             if let translationError {
                 Text(translationError)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 20)
+            }
+
+            if let fileError {
+                Text(fileError)
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .padding(.horizontal, 20)
@@ -242,6 +339,25 @@ struct LyricsSheet: View {
                 .padding(.horizontal, 28)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @MainActor
+    private func prepareTTMLExport() async {
+        guard let document,
+              let data = await LyricsService.shared.exportTTML(document) else {
+            fileError = "Tidak ada lirik yang dapat diekspor."
+            return
+        }
+        exportFile = LyricsTTMLFile(data: data)
+        fileError = nil
+        isExportingTTML = true
+    }
+
+    private static func safeFileName(_ value: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_ "))
+        let cleaned = String(value.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" })
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? "MusikKu" : String(cleaned.prefix(70))
     }
 
     @MainActor

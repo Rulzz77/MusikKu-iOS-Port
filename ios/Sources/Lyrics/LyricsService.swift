@@ -291,6 +291,90 @@ actor LyricsService {
         "\u{E000}\(String(format: "%04d", index))\u{E001}"
     }
 
+    /// Imports a local TTML document, retaining every timestamp the parser recognises.
+    func importTTML(_ data: Data, sourceName: String) -> LyricsDocument? {
+        guard !data.isEmpty, data.count <= 5 * 1_024 * 1_024,
+              let text = String(data: data, encoding: .utf8),
+              text.localizedCaseInsensitiveContains("<tt") else {
+            return nil
+        }
+        let lines = Self.parseTTML(text)
+        guard !lines.isEmpty else { return nil }
+        let safeName = sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return LyricsDocument(
+            source: safeName.isEmpty ? "TTML lokal" : "TTML • \(safeName)",
+            lines: lines
+        )
+    }
+
+    /// Exports line, word and syllable timestamps to a compact TTML document.
+    func exportTTML(_ document: LyricsDocument) -> Data? {
+        guard !document.lines.isEmpty else { return nil }
+
+        var xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <tt xmlns="http://www.w3.org/ns/ttml" xml:lang="und">
+          <body><div>
+        """
+
+        for (index, line) in document.lines.enumerated() {
+            let nextStart = document.lines.dropFirst(index + 1)
+                .compactMap(\.timeMilliseconds)
+                .first
+            let wordEnd = line.words.map(\.endMilliseconds).max()
+            let start = line.timeMilliseconds ?? line.words.first?.startMilliseconds
+            let inferredEnd = wordEnd ?? start.map { $0 + 3_000 }
+            let end: Int?
+            if let candidate = nextStart, let start, candidate > start {
+                end = candidate
+            } else {
+                end = inferredEnd
+            }
+
+            xml += "\n    <p"
+            if let start { xml += " begin=\"\(Self.ttmlTime(start))\"" }
+            if let end, let start, end > start { xml += " end=\"\(Self.ttmlTime(end))\"" }
+            xml += " xml:space=\"preserve\">"
+
+            if line.words.isEmpty {
+                xml += Self.escapeXML(line.text)
+            } else {
+                for (wordIndex, word) in line.words.enumerated() {
+                    if wordIndex > 0 { xml += " " }
+                    if word.syllables.count >= 2 {
+                        let characters = Array(word.text)
+                        for syllable in word.syllables {
+                            let lower = max(0, min(characters.count, syllable.startCharacter))
+                            let upper = max(lower, min(characters.count, syllable.endCharacter))
+                            let text = String(characters[lower..<upper])
+                            guard !text.isEmpty else { continue }
+                            xml += "<span begin=\"\(Self.ttmlTime(syllable.startMilliseconds))\" end=\"\(Self.ttmlTime(syllable.endMilliseconds))\">\(Self.escapeXML(text))</span>"
+                        }
+                    } else {
+                        xml += "<span begin=\"\(Self.ttmlTime(word.startMilliseconds))\" end=\"\(Self.ttmlTime(word.endMilliseconds))\">\(Self.escapeXML(word.text))</span>"
+                    }
+                }
+            }
+            xml += "</p>"
+        }
+
+        xml += "\n  </div></body>\n</tt>\n"
+        return xml.data(using: .utf8)
+    }
+
+    private static func ttmlTime(_ milliseconds: Int) -> String {
+        String(format: "%.3fs", Double(max(0, milliseconds)) / 1_000)
+    }
+
+    private static func escapeXML(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
+    }
+
     private func fetchBiniLyrics(
         title: String,
         artist: String,
