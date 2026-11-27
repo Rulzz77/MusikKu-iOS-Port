@@ -166,3 +166,54 @@ extension MusikKuErrorMessageTests {
         )
     }
 }
+
+
+final class CatalogPlaybackMappingTests: XCTestCase {
+    func testSongAndVideoCatalogItemsKeepTheirYouTubeVideoID() {
+        let videoID = "abcdefghijk"
+        for kind in [CatalogItemKind.song, .video] {
+            let item = CatalogItem(
+                id: videoID,
+                kind: kind,
+                title: "Contoh lagu",
+                subtitle: "Artis contoh",
+                artist: "Artis contoh",
+                artists: [],
+                albumName: nil,
+                albumBrowseID: nil,
+                browseID: nil,
+                artworkURL: nil,
+                durationSeconds: 180,
+                isExplicit: false,
+                isVideo: kind == .video
+            )
+
+            XCTAssertTrue(item.canSaveAsTrack)
+            XCTAssertEqual(item.asMusicTrack().youtubeVideoID, videoID)
+            XCTAssertNil(item.asMusicTrack().streamURL)
+        }
+    }
+
+    func testAlbumAndArtistCatalogItemsAreNotPlayableTracks() {
+        for kind in [CatalogItemKind.album, .artist, .playlist, .other] {
+            let item = CatalogItem(
+                id: "browse-identifier",
+                kind: kind,
+                title: "Halaman katalog",
+                subtitle: "Metadata katalog",
+                artist: "Artis contoh",
+                artists: [],
+                albumName: nil,
+                albumBrowseID: nil,
+                browseID: "browse-identifier",
+                artworkURL: nil,
+                durationSeconds: nil,
+                isExplicit: false,
+                isVideo: false
+            )
+
+            XCTAssertFalse(item.canSaveAsTrack)
+            XCTAssertNil(item.asMusicTrack().youtubeVideoID)
+        }
+    }
+}
