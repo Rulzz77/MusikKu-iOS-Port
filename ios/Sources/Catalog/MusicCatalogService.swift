@@ -217,6 +217,35 @@ actor MusicCatalogService {
     }
 
 
+    func browseContinuation(token: String, browseID: String) async throws -> CatalogBrowsePage {
+        let locale = Locale.current
+        let language = locale.language.languageCode?.identifier ?? "en"
+        let clientVersion = await resolveClientVersion()
+        let body: [String: Any] = [
+            "context": [
+                "client": [
+                    "clientName": "WEB_REMIX",
+                    "clientVersion": clientVersion,
+                    "hl": language,
+                    "gl": locale.region?.identifier ?? "US",
+                    "utcOffsetMinutes": TimeZone.current.secondsFromGMT() / 60
+                ],
+                "user": ["lockedSafetyMode": false],
+                "request": ["useSsl": true]
+            ],
+            "continuation": token
+        ]
+        let request = try continuationRequest(
+            endpoint: "browse",
+            token: token,
+            language: language,
+            clientVersion: clientVersion,
+            body: body
+        )
+        let root = try await sendJSON(request)
+        return parseBrowsePage(root, browseID: browseID)
+    }
+
     func moodAndGenres() async throws -> [CatalogMoodGenre] {
         let page = try await browsePage(browseID: "FEmusic_moods_and_genres")
         return page.moodGenres
@@ -261,7 +290,8 @@ actor MusicCatalogService {
             artworkURL: artworkURL,
             tracks: tracks,
             shelves: shelves,
-            moodGenres: parseMoodGenres(root)
+            moodGenres: parseMoodGenres(root),
+            continuation: Self.continuationToken(root)
         )
     }
 

@@ -496,6 +496,8 @@ struct CatalogBrowseDetailSheet: View {
     @State private var page: CatalogBrowsePage?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var isLoadingMore = false
+    @State private var paginationError: String?
     @State private var selectedTrackToAddToPlaylist: MusicTrack?
 
     var body: some View {
@@ -603,7 +605,7 @@ struct CatalogBrowseDetailSheet: View {
                             .foregroundStyle(MusikKuStyle.accent)
                         }
 
-                        ForEach(page.tracks) { track in
+                        ForEach(Array(page.tracks.enumerated()), id: \.element.id) { index, track in
                             HStack(spacing: 11) {
                                 AsyncImage(url: track.artworkURL) { phase in
                                     if case .success(let image) = phase {
@@ -662,6 +664,11 @@ struct CatalogBrowseDetailSheet: View {
                             }
                             .padding(9)
                             .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 13))
+                            .onAppear {
+                                if index >= page.tracks.count - 5 {
+                                    Task { await loadMorePage() }
+                                }
+                            }
                         }
                     }
                 }
@@ -678,12 +685,61 @@ struct CatalogBrowseDetailSheet: View {
                         .padding(24)
                 }
 
+                if isLoadingMore {
+                    HStack(spacing: 8) {
+                        ProgressView().tint(MusikKuStyle.accent)
+                        Text("Memuat daftar berikutnya…")
+                            .font(.caption)
+                            .foregroundStyle(MusikKuStyle.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                } else if let paginationError {
+                    Button(paginationError) {
+                        Task { await loadMorePage() }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(MusikKuStyle.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                }
+
                 Text("Pilih tombol putar untuk mencoba memutar lagu. Pemutaran bergantung pada ketersediaan stream dari penyedia musik.")
                     .font(.caption)
                     .foregroundStyle(MusikKuStyle.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(18)
+        }
+    }
+
+    @MainActor
+    private func loadMorePage() async {
+        guard !isLoading, !isLoadingMore,
+              let currentPage = page,
+              let token = currentPage.continuation else { return }
+        isLoadingMore = true
+        paginationError = nil
+        defer { isLoadingMore = false }
+
+        do {
+            let next = try await MusicCatalogService.shared.browseContinuation(
+                token: token,
+                browseID: currentPage.id
+            )
+            var merged = currentPage
+            var knownTracks = Set(merged.tracks.map(\.id))
+            merged.tracks.append(contentsOf: next.tracks.filter {
+                knownTracks.insert($0.id).inserted
+            })
+            var knownShelves = Set(merged.shelves.map(\.id))
+            merged.shelves.append(contentsOf: next.shelves.filter {
+                knownShelves.insert($0.id).inserted
+            })
+            merged.continuation = next.continuation
+            page = merged
+        } catch {
+            paginationError = "Gagal memuat halaman berikutnya. Ketuk untuk mencoba ulang."
         }
     }
 

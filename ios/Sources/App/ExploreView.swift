@@ -231,6 +231,8 @@ private struct ExploreCategoryDetailSheet: View {
     @State private var page: CatalogBrowsePage?
     @State private var selectedBrowseItem: CatalogItem?
     @State private var isLoading = false
+    @State private var isLoadingMore = false
+    @State private var paginationError: String?
     @State private var errorMessage: String?
     let category: CatalogMoodGenre
 
@@ -275,9 +277,14 @@ private struct ExploreCategoryDetailSheet: View {
                                     .foregroundStyle(MusikKuStyle.secondary)
                             }
 
-                            ForEach(page.shelves) { shelf in
+                            ForEach(Array(page.shelves.enumerated()), id: \.element.id) { index, shelf in
                                 ExploreCategoryShelf(shelf: shelf) { item in
                                     open(item)
+                                }
+                                .onAppear {
+                                    if index == page.shelves.count - 1 && page.tracks.isEmpty {
+                                        Task { await loadMoreCategoryPage() }
+                                    }
                                 }
                             }
 
@@ -285,9 +292,14 @@ private struct ExploreCategoryDetailSheet: View {
                                 VStack(alignment: .leading, spacing: 9) {
                                     Text("Lagu")
                                         .font(.headline)
-                                    ForEach(page.tracks) { item in
+                                    ForEach(Array(page.tracks.enumerated()), id: \.element.id) { index, item in
                                         ExploreCategoryTrack(item: item) {
                                             open(item)
+                                        }
+                                        .onAppear {
+                                            if index >= page.tracks.count - 5 {
+                                                Task { await loadMoreCategoryPage() }
+                                            }
                                         }
                                     }
                                 }
@@ -297,6 +309,19 @@ private struct ExploreCategoryDetailSheet: View {
                                 Text("Belum ada daftar musik untuk kategori ini.")
                                     .font(.subheadline)
                                     .foregroundStyle(MusikKuStyle.secondary)
+                            }
+
+                            if isLoadingMore {
+                                ProgressView("Memuat pilihan berikutnya…")
+                                    .tint(MusikKuStyle.accent)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                            } else if let paginationError {
+                                Button(paginationError) {
+                                    Task { await loadMoreCategoryPage() }
+                                }
+                                .font(.caption)
+                                .foregroundStyle(MusikKuStyle.accent)
                             }
                         }
                         .padding(18)
@@ -346,6 +371,36 @@ private struct ExploreCategoryDetailSheet: View {
             )
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func loadMoreCategoryPage() async {
+        guard !isLoading, !isLoadingMore,
+              let currentPage = page,
+              let token = currentPage.continuation else { return }
+        isLoadingMore = true
+        paginationError = nil
+        defer { isLoadingMore = false }
+
+        do {
+            let next = try await MusicCatalogService.shared.browseContinuation(
+                token: token,
+                browseID: currentPage.id
+            )
+            var merged = currentPage
+            var knownTracks = Set(merged.tracks.map(\.id))
+            merged.tracks.append(contentsOf: next.tracks.filter {
+                knownTracks.insert($0.id).inserted
+            })
+            var knownShelves = Set(merged.shelves.map(\.id))
+            merged.shelves.append(contentsOf: next.shelves.filter {
+                knownShelves.insert($0.id).inserted
+            })
+            merged.continuation = next.continuation
+            page = merged
+        } catch {
+            paginationError = "Gagal memuat pilihan berikutnya. Ketuk untuk mencoba ulang."
         }
     }
 

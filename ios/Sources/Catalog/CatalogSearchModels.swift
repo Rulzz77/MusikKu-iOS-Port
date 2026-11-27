@@ -119,7 +119,8 @@ struct CatalogBrowsePage: Identifiable, Hashable {
     let title: String
     let subtitle: String
     let artworkURL: URL?
-    let tracks: [CatalogItem]
-    let shelves: [CatalogHomeShelf]
+    var tracks: [CatalogItem]
+    var shelves: [CatalogHomeShelf]
     var moodGenres: [CatalogMoodGenre] = []
+    var continuation: String? = nil
 }

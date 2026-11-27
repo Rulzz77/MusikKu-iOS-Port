@@ -32,7 +32,7 @@ Implemented in the current development branch:
 Still not integrated or not fully verified:
 - WKWebView BotGuard initialization and token-provider code compile successfully in iOS CI. Live challenge execution, PoToken generation, attestation-gated stream extraction, and audible playback still require runtime verification; YouTube can change its challenge protocol.
 - Authenticated Google/YouTube account sessions, account/channel switching, account likes, and server-synced playlists.
-- Browse-detail continuation paging and deeper nested browse parity.
+- Browse-detail and mood/genre-category continuation paging; deeper nested browse parity is still incomplete.
 - Other Android catalogue/add-on sources such as JioSaavn and custom modules.
 - Lyrics translation, local TTML import/export, provider settings, and more Android lyric-source parity.
 - Download manager, offline audio, remote recommendations, advanced smart playlists, and cross-device sync. The current Mix is local and ranked by play count.
