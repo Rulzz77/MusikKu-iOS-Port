@@ -9,7 +9,6 @@ import com.metrolist.innertubex.extraction.potoken.u8ToBase64
 import com.metrolist.innertubex.extraction.strategy.PoTokenProviderKind
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.darwin.Darwin
-import io.ktor.client.engine.darwin.configureSession
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.header
 import io.ktor.client.request.post
