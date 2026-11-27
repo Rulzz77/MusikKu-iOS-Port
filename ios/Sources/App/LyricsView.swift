@@ -63,6 +63,7 @@ struct LyricsSheet: View {
     @State private var isExportingTTML = false
     @State private var exportFile: LyricsTTMLFile?
     @State private var translationTarget = UserDefaults.standard.string(forKey: "musikku.lyrics.translation-target.v1") ?? "id"
+    @State private var selectedProvider = LyricsProvider(rawValue: UserDefaults.standard.string(forKey: "musikku.lyrics.provider.v1") ?? "") ?? .automatic
     @State private var isLoading = true
 
     private var displayedDocument: LyricsDocument? {
@@ -114,6 +115,12 @@ struct LyricsSheet: View {
                                 Text(target.title).tag(target.code)
                             }
                         }
+
+                        Picker("Sumber lirik", selection: $selectedProvider) {
+                            ForEach(LyricsProvider.allCases) { provider in
+                                Text(provider.title).tag(provider)
+                            }
+                        }
                         Button {
                             Task { await translateLyrics() }
                         } label: {
@@ -156,6 +163,11 @@ struct LyricsSheet: View {
             UserDefaults.standard.set(newValue, forKey: "musikku.lyrics.translation-target.v1")
             showingTranslation = false
             translationError = nil
+        }
+
+        .onChange(of: selectedProvider) { newValue in
+            UserDefaults.standard.set(newValue.rawValue, forKey: "musikku.lyrics.provider.v1")
+            Task { await loadLyrics() }
         }
         .fileImporter(
             isPresented: $isImportingTTML,
@@ -386,6 +398,6 @@ struct LyricsSheet: View {
         showingTranslation = false
         translationError = nil
         defer { isLoading = false }
-        document = await LyricsService.shared.lyrics(for: track)
+        document = await LyricsService.shared.lyrics(for: track, provider: selectedProvider)
     }
 }

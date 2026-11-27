@@ -1,5 +1,38 @@
 import Foundation
 
+enum LyricsProvider: String, CaseIterable, Identifiable, Hashable {
+    case automatic
+    case lrcRed
+    case biniLyrics
+    case betterLyrics
+    case betterLyricsPortato
+    case lrcLib
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic: return "Otomatis (disarankan)"
+        case .lrcRed: return "lrc.red"
+        case .biniLyrics: return "BiniLyrics"
+        case .betterLyrics: return "BetterLyrics"
+        case .betterLyricsPortato: return "BetterLyrics Portato"
+        case .lrcLib: return "LRCLIB"
+        }
+    }
+
+    var providerName: String {
+        switch self {
+        case .automatic: return "Otomatis"
+        case .lrcRed: return "lrc.red"
+        case .biniLyrics: return "BiniLyrics"
+        case .betterLyrics: return "BetterLyrics"
+        case .betterLyricsPortato: return "BetterLyrics Portato"
+        case .lrcLib: return "LRCLIB"
+        }
+    }
+}
+
 struct LyricsSyllable: Hashable {
     let startMilliseconds: Int
     let endMilliseconds: Int
@@ -76,304 +109,93 @@ actor LyricsService {
     }
 
     func lyrics(for track: MusicTrack) async -> LyricsDocument? {
+        await lyrics(for: track, provider: .automatic)
+    }
+
+    func lyrics(for track: MusicTrack, provider: LyricsProvider) async -> LyricsDocument? {
         let title = Self.cleanTitle(track.title)
         let artist = Self.cleanArtist(track.artist)
         guard !title.isEmpty, !artist.isEmpty else { return nil }
 
-        if let lrcRed = await fetchLrcRed(
-            title: title,
-            artist: artist,
-            durationSeconds: track.durationSeconds
-        ) {
-            return lrcRed
-        }
-
-        if let bini = await fetchBiniLyrics(
-            title: title,
-            artist: artist,
-            album: track.album,
-            durationSeconds: track.durationSeconds
-        ) {
-            return bini
-        }
-
-        if let betterLyrics = await fetchBetterLyrics(
-            title: title,
-            artist: artist,
-            album: track.album,
-            durationSeconds: track.durationSeconds
-        ) {
-            return betterLyrics
-        }
-
-        if let portato = await fetchBetterLyrics(
-            title: title,
-            artist: artist,
-            album: track.album,
-            durationSeconds: track.durationSeconds,
-            endpoint: "https://lyrics-api.boidu.dev/qq/getLyrics",
-            sourceName: "BetterLyrics Portato"
-        ) {
-            return portato
-        }
-
-        return await fetchLrcLib(
-            title: title,
-            artist: artist,
-            durationSeconds: track.durationSeconds
-        )
-    }
-
-    /// Translates lyric lines on demand while preserving their original timestamps.
-    /// The translation endpoint is unofficial; provider availability can change.
-    func translate(
-        _ document: LyricsDocument,
-        trackID: String,
-        targetLanguage: String
-    ) async -> LyricsDocument? {
-        let target = targetLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !target.isEmpty, !document.lines.isEmpty else { return nil }
-
-        let lyricsSignature = document.lines.map(\.text).joined(separator: "\u{0000}")
-        let cacheKey = "\(trackID)|\(target)|\(lyricsSignature)"
-        if let cached = translationCache[cacheKey] {
-            return cached
-        }
-
-        var translatedByIndex: [Int: String] = [:]
-        let batches = makeTranslationBatches(document.lines)
-        guard !batches.isEmpty else { return nil }
-
-        for batch in batches {
-            guard let translated = await requestTranslation(batch, targetLanguage: target),
-                  translated.count == batch.count else {
-                return nil
+        switch provider {
+        case .automatic:
+            if let lrcRed = await fetchLrcRed(
+                title: title,
+                artist: artist,
+                durationSeconds: track.durationSeconds
+            ) {
+                return lrcRed
             }
-            for (slot, text) in zip(batch, translated) {
-                translatedByIndex[slot.index] = text
+            if let bini = await fetchBiniLyrics(
+                title: title,
+                artist: artist,
+                album: track.album,
+                durationSeconds: track.durationSeconds
+            ) {
+                return bini
             }
-        }
+            if let betterLyrics = await fetchBetterLyrics(
+                title: title,
+                artist: artist,
+                album: track.album,
+                durationSeconds: track.durationSeconds
+            ) {
+                return betterLyrics
+            }
+            if let portato = await fetchBetterLyrics(
+                title: title,
+                artist: artist,
+                album: track.album,
+                durationSeconds: track.durationSeconds,
+                endpoint: "https://lyrics-api.boidu.dev/qq/getLyrics",
+                sourceName: "BetterLyrics Portato"
+            ) {
+                return portato
+            }
+            return await fetchLrcLib(
+                title: title,
+                artist: artist,
+                durationSeconds: track.durationSeconds
+            )
 
-        guard !translatedByIndex.isEmpty else { return nil }
-        let translatedLines = document.lines.enumerated().map { index, line in
-            guard let text = translatedByIndex[index] else { return line }
-            return LyricsLine(
-                id: line.id,
-                timeMilliseconds: line.timeMilliseconds,
-                text: text,
-                words: []
+        case .lrcRed:
+            return await fetchLrcRed(title: title, artist: artist, durationSeconds: track.durationSeconds)
+
+        case .biniLyrics:
+            return await fetchBiniLyrics(
+                title: title,
+                artist: artist,
+                album: track.album,
+                durationSeconds: track.durationSeconds
+            )
+
+        case .betterLyrics:
+            return await fetchBetterLyrics(
+                title: title,
+                artist: artist,
+                album: track.album,
+                durationSeconds: track.durationSeconds
+            )
+
+        case .betterLyricsPortato:
+            return await fetchBetterLyrics(
+                title: title,
+                artist: artist,
+                album: track.album,
+                durationSeconds: track.durationSeconds,
+                endpoint: "https://lyrics-api.boidu.dev/qq/getLyrics",
+                sourceName: "BetterLyrics Portato"
+            )
+
+        case .lrcLib:
+            return await fetchLrcLib(
+                title: title,
+                artist: artist,
+                durationSeconds: track.durationSeconds
             )
         }
-        let result = LyricsDocument(
-            source: "Terjemahan otomatis • \(target.uppercased())",
-            lines: translatedLines
-        )
-
-        translationCache[cacheKey] = result
-        translationCacheOrder.removeAll { $0 == cacheKey }
-        translationCacheOrder.append(cacheKey)
-        while translationCacheOrder.count > 40 {
-            let oldest = translationCacheOrder.removeFirst()
-            translationCache.removeValue(forKey: oldest)
-        }
-        return result
     }
 
-    private struct TranslationSlot {
-        let index: Int
-        let text: String
-    }
-
-    private func makeTranslationBatches(_ lines: [LyricsLine]) -> [[TranslationSlot]] {
-        var batches: [[TranslationSlot]] = []
-        var current: [TranslationSlot] = []
-        var currentLength = 0
-
-        func isSectionHeader(_ text: String) -> Bool {
-            text.range(of: #"^\s*\[[^\]]+\]\s*$"#, options: .regularExpression) != nil
-        }
-
-        func flush() {
-            guard !current.isEmpty else { return }
-            batches.append(current)
-            current = []
-            currentLength = 0
-        }
-
-        for (index, line) in lines.enumerated() {
-            let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty, !isSectionHeader(text) else { continue }
-            let addedLength = text.count + (current.isEmpty ? 0 : 16)
-            if !current.isEmpty && currentLength + addedLength > 3_200 {
-                flush()
-            }
-            current.append(TranslationSlot(index: index, text: text))
-            currentLength += addedLength
-        }
-        flush()
-        return batches
-    }
-
-    private func requestTranslation(
-        _ slots: [TranslationSlot],
-        targetLanguage: String
-    ) async -> [String]? {
-        guard !slots.isEmpty,
-              let url = URL(string: "https://translate.googleapis.com/translate_a/single") else {
-            return nil
-        }
-
-        let payload = slots.enumerated().map { index, slot in
-            index == 0 ? slot.text : "\(Self.translationMarker(index - 1))\n\(slot.text)"
-        }.joined(separator: "\n")
-
-        var form = URLComponents()
-        form.queryItems = [
-            URLQueryItem(name: "client", value: "dict-chrome-ex"),
-            URLQueryItem(name: "sl", value: "auto"),
-            URLQueryItem(name: "tl", value: targetLanguage),
-            URLQueryItem(name: "dt", value: "t"),
-            URLQueryItem(name: "q", value: payload)
-        ]
-        guard let formBody = form.percentEncodedQuery?.data(using: .utf8) else { return nil }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 18
-        request.httpBody = formBody
-        request.setValue("application/x-www-form-urlencoded;charset=UTF-8", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("MusikKu iOS", forHTTPHeaderField: "User-Agent")
-
-        do {
-            let (data, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse,
-                  (200..<300).contains(http.statusCode),
-                  let root = try JSONSerialization.jsonObject(with: data) as? [Any],
-                  let rawSegments = root.first as? [Any] else {
-                return nil
-            }
-
-            let translatedBody = rawSegments.compactMap { segment -> String? in
-                guard let values = segment as? [Any] else { return nil }
-                return values.first as? String
-            }.joined()
-            return splitTranslation(translatedBody, expectedCount: slots.count)
-        } catch {
-            return nil
-        }
-    }
-
-    private func splitTranslation(_ value: String, expectedCount: Int) -> [String]? {
-        guard expectedCount > 0 else { return [] }
-        var remaining = value[...]
-        var result: [String] = []
-
-        if expectedCount > 1 {
-            for index in 0..<(expectedCount - 1) {
-                let marker = Self.translationMarker(index)
-                guard let markerRange = remaining.range(of: marker) else { return nil }
-                let text = String(remaining[..<markerRange.lowerBound])
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !text.isEmpty else { return nil }
-                result.append(text)
-                remaining = remaining[markerRange.upperBound...]
-            }
-        }
-
-        let finalText = String(remaining).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !finalText.isEmpty else { return nil }
-        result.append(finalText)
-        return result.count == expectedCount ? result : nil
-    }
-
-    private static func translationMarker(_ index: Int) -> String {
-        "\u{E000}\(String(format: "%04d", index))\u{E001}"
-    }
-
-    /// Imports a local TTML document, retaining every timestamp the parser recognises.
-    func importTTML(_ data: Data, sourceName: String) -> LyricsDocument? {
-        guard !data.isEmpty, data.count <= 5 * 1_024 * 1_024,
-              let text = String(data: data, encoding: .utf8),
-              text.localizedCaseInsensitiveContains("<tt") else {
-            return nil
-        }
-        let lines = Self.parseTTML(text)
-        guard !lines.isEmpty else { return nil }
-        let safeName = sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
-        return LyricsDocument(
-            source: safeName.isEmpty ? "TTML lokal" : "TTML • \(safeName)",
-            lines: lines
-        )
-    }
-
-    /// Exports line, word and syllable timestamps to a compact TTML document.
-    func exportTTML(_ document: LyricsDocument) -> Data? {
-        guard !document.lines.isEmpty else { return nil }
-
-        var xml = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <tt xmlns="http://www.w3.org/ns/ttml" xml:lang="und">
-          <body><div>
-        """
-
-        for (index, line) in document.lines.enumerated() {
-            let nextStart = document.lines.dropFirst(index + 1)
-                .compactMap(\.timeMilliseconds)
-                .first
-            let wordEnd = line.words.map(\.endMilliseconds).max()
-            let start = line.timeMilliseconds ?? line.words.first?.startMilliseconds
-            let inferredEnd = wordEnd ?? start.map { $0 + 3_000 }
-            let end: Int?
-            if let candidate = nextStart, let start, candidate > start {
-                end = candidate
-            } else {
-                end = inferredEnd
-            }
-
-            xml += "\n    <p"
-            if let start { xml += " begin=\"\(Self.ttmlTime(start))\"" }
-            if let end, let start, end > start { xml += " end=\"\(Self.ttmlTime(end))\"" }
-            xml += " xml:space=\"preserve\">"
-
-            if line.words.isEmpty {
-                xml += Self.escapeXML(line.text)
-            } else {
-                for (wordIndex, word) in line.words.enumerated() {
-                    if wordIndex > 0 { xml += " " }
-                    if word.syllables.count >= 2 {
-                        let characters = Array(word.text)
-                        for syllable in word.syllables {
-                            let lower = max(0, min(characters.count, syllable.startCharacter))
-                            let upper = max(lower, min(characters.count, syllable.endCharacter))
-                            let text = String(characters[lower..<upper])
-                            guard !text.isEmpty else { continue }
-                            xml += "<span begin=\"\(Self.ttmlTime(syllable.startMilliseconds))\" end=\"\(Self.ttmlTime(syllable.endMilliseconds))\">\(Self.escapeXML(text))</span>"
-                        }
-                    } else {
-                        xml += "<span begin=\"\(Self.ttmlTime(word.startMilliseconds))\" end=\"\(Self.ttmlTime(word.endMilliseconds))\">\(Self.escapeXML(word.text))</span>"
-                    }
-                }
-            }
-            xml += "</p>"
-        }
-
-        xml += "\n  </div></body>\n</tt>\n"
-        return xml.data(using: .utf8)
-    }
-
-    private static func ttmlTime(_ milliseconds: Int) -> String {
-        String(format: "%.3fs", Double(max(0, milliseconds)) / 1_000)
-    }
-
-    private static func escapeXML(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-            .replacingOccurrences(of: "'", with: "&apos;")
-    }
 
     private func fetchBiniLyrics(
         title: String,
