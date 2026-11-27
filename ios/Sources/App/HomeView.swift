@@ -284,7 +284,11 @@ struct HomeView: View {
                 Button {
                     playback.togglePlayback()
                 } label: {
-                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                    Image(
+                        systemName: playback.isResolving
+                            ? "xmark"
+                            : (playback.isPlaying ? "pause.fill" : "play.fill")
+                    )
                         .font(.title2.bold())
                         .foregroundStyle(.white)
                         .frame(width: 52, height: 52)
