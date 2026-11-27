@@ -349,7 +349,7 @@ private class IOSWebAttestationSession private constructor(
         val response = httpClient.get(url) {
             header(HttpHeaders.UserAgent, userAgent)
             header(HttpHeaders.Accept, "*/*")
-            header(HttpHeaders.Referer, YOUTUBE_REFERER)
+            header("Referer", YOUTUBE_REFERER)
         }
         if (!response.status.isSuccess()) {
             throw IllegalStateException("BotGuard interpreter returned HTTP " + response.status.value)
