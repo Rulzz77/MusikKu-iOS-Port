@@ -61,7 +61,14 @@ private class IOSPoTokenProvider : TokenProvider {
     private val httpClient = HttpClient(Darwin) {
         expectSuccess = false
         followRedirects = false
-        engine {\n            // BotGuard requests must never inherit or persist Google account cookies.\n            configureSession {\n                HTTPCookieStorage = null\n                HTTPShouldSetCookies = false\n            }\n        }\n        install(HttpTimeout) {
+        engine {
+            // BotGuard requests must never inherit or persist Google account cookies.
+            configureSession {
+                HTTPCookieStorage = null
+                HTTPShouldSetCookies = false
+            }
+        }
+        install(HttpTimeout) {
             requestTimeoutMillis = 30_000
             connectTimeoutMillis = 15_000
             socketTimeoutMillis = 30_000
