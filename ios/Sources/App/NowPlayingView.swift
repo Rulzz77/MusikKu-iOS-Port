@@ -71,7 +71,7 @@ struct NowPlayingView: View {
                 } else {
                     emptyState(
                         title: "Belum ada lagu",
-                        message: "Pilih lagu dari katalog setelah penyedia musik terhubung.",
+                        message: "Cari lagu, lalu tekan ikon putar dari Beranda atau Pencarian.",
                         symbol: "music.note"
                     )
                 }
