@@ -40,6 +40,7 @@ final class PlaybackManager: ObservableObject {
     @Published var errorMessage: String?
 
     private var currentQueueIndex: Int?
+    private var pendingPlaybackStartTrackID: String?
     private var sleepTimerTask: Task<Void, Never>?
     private var sleepTimerOriginalVolume: Float = 1.0
     private let sleepTimerFadeOutKey = "musikku.player.sleep-timer-fade-out.v1"
@@ -382,6 +383,7 @@ final class PlaybackManager: ObservableObject {
             return
         }
 
+        pendingPlaybackStartTrackID = currentTrack?.id
         player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
             guard finished else { return }
             Task { @MainActor in
@@ -400,6 +402,7 @@ final class PlaybackManager: ObservableObject {
         isPlaying = false
 
         currentTrack = track
+        pendingPlaybackStartTrackID = track.id
         isBuffering = false
         position = 0
         duration = 0
@@ -459,6 +462,7 @@ final class PlaybackManager: ObservableObject {
                 self.startPlayer(track: track, url: url, headers: headers)
             } catch {
                 guard !Task.isCancelled, self.currentTrack?.id == track.id else { return }
+                self.pendingPlaybackStartTrackID = nil
                 self.resolveTask = nil
                 self.isResolving = false
                 self.isPlaying = false
@@ -474,6 +478,7 @@ final class PlaybackManager: ObservableObject {
             try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
             try session.setActive(true)
         } catch {
+            pendingPlaybackStartTrackID = nil
             isPlaying = false
             errorMessage = "Tidak dapat mengaktifkan audio iOS: \(error.localizedDescription)"
             updateNowPlaying()
@@ -526,6 +531,10 @@ final class PlaybackManager: ObservableObject {
                 guard let self, self.player === nextPlayer else { return }
                 switch nextPlayer.timeControlStatus {
                 case .playing:
+                    if self.pendingPlaybackStartTrackID == self.currentTrack?.id {
+                        self.pendingPlaybackStartTrackID = nil
+                        self.playbackStartID = UUID()
+                    }
                     self.isPlaying = true
                     self.isBuffering = false
                 case .waitingToPlayAtSpecifiedRate:
@@ -541,8 +550,7 @@ final class PlaybackManager: ObservableObject {
         }
 
         nextPlayer.playImmediately(atRate: Float(playbackSpeed))
-        playbackStartID = UUID()
-        isPlaying = true
+        isPlaying = false
         updateNowPlaying()
     }
 
