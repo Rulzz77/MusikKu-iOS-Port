@@ -8,7 +8,8 @@ The project is an actively developed iOS port, not yet a complete feature-equiva
 
 - SwiftUI tabs: Beranda, Cari, and Koleksi.
 - Local playlist creation, deletion, track removal, and favorites.
-- Playback from local playlist/favorite entries once they contain a valid authorized stream URL.
+- Catalog song/video Play actions from Search, Home shelves, and browse pages, connected to the AVPlayer queue and InnerTubeX stream resolver.
+- Play-all for tracks exposed by album/artist/playlist browse pages.
 - An AVPlayer queue foundation with enqueue, removal, next/previous, shuffle, repeat-one, and automatic advance.
 - A Kotlin Multiplatform audio resolver using the same InnerTubeX `v0.7.0` dependency as Android MusikKu, with Ktor Darwin for iOS.
 - A mini-player and full Now Playing screen with artwork, seeking, favorite, playlist, and queue controls.
@@ -20,12 +21,12 @@ The project is an actively developed iOS port, not yet a complete feature-equiva
 - Read-only browse detail sheets for album, artist, and playlist items from Search and Home, including the page header, first track list, and related shelves.
 - Add catalogue tracks from browse details to local playlists or favorites.
 
-Home, Search, and browse details retrieve catalogue metadata and artwork. The new KMP resolver attempts to extract direct HTTPS audio URLs for YouTube song/video IDs and passes the required request headers to AVPlayer. It uses the same InnerTubeX version as Android. This first iOS resolver does not yet mint a browser PoToken or use Google account cookies, so some items may remain unavailable until the iOS attestation provider is ported.
+Home, Search, and browse details retrieve catalogue metadata and artwork. Selecting Play hands a YouTube song/video ID to the KMP resolver, which attempts to extract a direct HTTPS audio URL and passes the required request headers to AVPlayer. Remote player config is cached on iOS and each extraction uses a client playback nonce. The resolver uses the same InnerTubeX version as Android. This first iOS resolver does not yet mint a browser PoToken or use Google account cookies, so some items may remain unavailable. UI wiring and a successful simulator build are not proof of audible playback; real-device playback still needs to be tested.
 
 ## Requirements
 
 - A Mac with Xcode installed (iOS builds and Simulator require Apple's toolchain).
-- Homebrew, Gradle 9.7.1 or newer, Java 21, and XcodeGen.
+- Homebrew, Gradle 9.5.0 or newer, Java 21, and XcodeGen.
 - For device/TestFlight distribution: Apple Developer signing, provisioning, and App Store Connect setup.
 
 Install XcodeGen:
@@ -55,7 +56,7 @@ open ios/MusikKu.xcodeproj
 ## Important limitations
 
 - Search is connected to the Android project's anonymous WEB_REMIX catalogue request shape, but service availability and response changes are controlled by the third-party endpoint.
-- The InnerTubeX adapter resolves direct HTTPS audio streams for eligible YouTube song/video IDs. It currently uses the library's default unavailable PoToken provider and does not attach Google account cookies; some videos may be rejected by YouTube's player attestation.
+- Search/Home Play actions are wired to InnerTubeX and AVPlayer, but real audio playback has not yet been confirmed on a physical iPhone or simulator. The adapter still uses the default unavailable PoToken provider and does not attach Google account cookies; attestation-gated items may be rejected.
 - Background audio is declared and the AVAudioSession is configured, but it still needs physical-iPhone verification.
 - Local playlists and favorites are stored on the current device only; no login or cloud sync is implemented.
 - The project does not currently provide APK-style self-updates. iOS distribution uses TestFlight / App Store channels.
