@@ -1,0 +1,30 @@
+name: MusikKu
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  bundleIdPrefix: id.musikku
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  MusikKu:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    info:
+      path: Support/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: id.musikku.ios
+        PRODUCT_NAME: MusikKu
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Support/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_PREVIEWS: YES
