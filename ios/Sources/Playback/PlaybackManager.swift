@@ -1,6 +1,7 @@
 import AVFoundation
 import Combine
 import MediaPlayer
+import UIKit
 
 @MainActor
 final class PlaybackManager: ObservableObject {
@@ -23,6 +24,9 @@ final class PlaybackManager: ObservableObject {
     private var notificationObservers: [NSObjectProtocol] = []
     private var itemStatusObservation: NSKeyValueObservation?
     private var shouldResumeAfterInterruption = false
+    private var artworkTask: Task<Void, Never>?
+    private var loadedArtworkURL: URL?
+    private var loadedArtwork: UIImage?
 
     init() {
         configureRemoteCommands()
@@ -178,6 +182,13 @@ final class PlaybackManager: ObservableObject {
         position = 0
         duration = 0
 
+        if loadedArtworkURL != track.artworkURL {
+            artworkTask?.cancel()
+            artworkTask = nil
+            loadedArtworkURL = nil
+            loadedArtwork = nil
+        }
+
         guard let url = track.streamURL,
               let scheme = url.scheme?.lowercased(),
               scheme == "https" || scheme == "http" else {
@@ -279,6 +290,17 @@ final class PlaybackManager: ObservableObject {
         center.skipBackwardCommand.isEnabled = true
         center.skipForwardCommand.preferredIntervals = [15]
         center.skipBackwardCommand.preferredIntervals = [15]
+        center.changePlaybackPositionCommand.isEnabled = true
+
+        center.changePlaybackPositionCommand.addTarget { [weak self] event in
+            guard let event = event as? MPChangePlaybackPositionCommandEvent else {
+                return .commandFailed
+            }
+            Task { @MainActor in
+                self?.seek(to: event.positionTime)
+            }
+            return .success
+        }
 
         center.playCommand.addTarget { [weak self] _ in
             Task { @MainActor in self?.resume() }
@@ -345,6 +367,23 @@ final class PlaybackManager: ObservableObject {
             }
         }
         notificationObservers.append(token)
+
+        let routeToken = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            guard let rawReason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason),
+                  reason == .oldDeviceUnavailable else {
+                return
+            }
+
+            Task { @MainActor in
+                self?.pause()
+            }
+        }
+        notificationObservers.append(routeToken)
     }
 
     private func skip(by interval: Double) {
@@ -370,6 +409,32 @@ final class PlaybackManager: ObservableObject {
         if duration > 0 {
             info[MPMediaItemPropertyPlaybackDuration] = duration
         }
+        if let artwork = loadedArtwork,
+           loadedArtworkURL == currentTrack.artworkURL {
+            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: artwork.size) { _ in artwork }
+        } else if let artworkURL = currentTrack.artworkURL,
+                  loadedArtworkURL != artworkURL,
+                  artworkTask == nil {
+            artworkTask = Task {
+                do {
+                    let (data, _) = try await URLSession.shared.data(from: artworkURL)
+                    guard !Task.isCancelled,
+                          self.currentTrack?.artworkURL == artworkURL,
+                          let image = UIImage(data: data) else {
+                        self.artworkTask = nil
+                        return
+                    }
+
+                    self.loadedArtworkURL = artworkURL
+                    self.loadedArtwork = image
+                    self.artworkTask = nil
+                    self.updateNowPlaying()
+                } catch {
+                    self.artworkTask = nil
+                }
+            }
+        }
+
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 }
