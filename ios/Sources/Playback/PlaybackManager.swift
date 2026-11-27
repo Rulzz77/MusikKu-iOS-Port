@@ -135,8 +135,8 @@ final class PlaybackManager: ObservableObject {
     func resume() {
         guard let player else {
             // Re-resolve the current track when playback was paused before AVPlayer existed.
-            if currentTrack != nil, !isResolving {
-                startTrack(currentTrack!)
+            if let track = currentTrack, !isResolving {
+                startTrack(track)
             }
             return
         }
