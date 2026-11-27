@@ -1,54 +1,49 @@
 # Porting status
 
-Current state: **native iOS UI with Android-aligned Home/Explore/Library navigation, global search, floating player dock, mood/genre browsing, local listening history and a play-count-based Mix. It is still not feature-equivalent to Android.**
+Current state: **native iOS UI with Android-aligned Beranda / Explore / Koleksi navigation, global search, local collections, playback queue, lyrics tools and a Kotlin Multiplatform resolver. It is substantially closer to Android's core workflows, but it is not feature-equivalent or release-ready.**
 
-Implemented in the current development branch:
-- SwiftUI app with Android-aligned Beranda, Explore, and Koleksi tabs; catalogue search is opened globally from the main screens.
-- Combined floating material dock with mini-player transport controls and main-tab navigation.
-- Android-aligned dark palette and mood/genre Explore grid sourced from `FEmusic_moods_and_genres`.
-- Local listening history with play counts, elapsed listening time, totals in the History tab, and flushing of pending progress when switching tracks or entering background; Mix queue ranked by frequently played tracks.
-- Saved local Smart Playlist rules with minimum play count, optional artist filter, track-duration bounds, last-played window, ALL/ANY matching and most-played/recently-played/most-listened ordering.
-- Persistent local playlists and favorites using versioned UserDefaults JSON keys.
-- Playlist detail can queue tracks and remove items when a track has a resolved stream.
-- AVPlayer queue foundation: play a queue, enqueue, remove a queue item, next, previous, shuffle, repeat-one, and automatic advance.
-- Mini-player and full Now Playing screen with artwork, seek, favorite, add-to-playlist, queue inspection/removal, and manual queue reordering.
-- Lock-screen / Control Center play, pause, next, previous, seek, and asynchronously loaded artwork.
-- Audio interruption and headphone-removal pause handling.
-- Read-only YouTube Music search using the Android repository's anonymous WEB_REMIX request pattern, client identity, and filter parameters.
-- Search continuation paging, local recent-search history, debounced YouTube Music query suggestions, Home-feed continuation paging, and album/playlist/category browse continuation paging.
-- Listening counts are recorded when AVPlayer actually starts a resolved stream, rather than when a track is merely selected.
-- Search filters for all, songs, videos, albums, artists, and playlists.
-- First-page Home feed from `FEmusic_home`, plus album/artist/playlist browse details and local collection actions.
-- Lyrics providers: lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato, and LRCLIB fallback; TTML supports line, word, and syllable timing.
-- Kotlin Multiplatform `resolver-kmp` module pinned to the same InnerTubeX `v0.7.0` dependency used by Android MusikKu.
-- iOS Darwin HTTP transport with audio-only extraction (`HLS` and `SABR` disabled) and AVPlayer handoff of direct HTTPS URL plus request headers.
-- Persistent iOS `NSUserDefaults` cache for InnerTubeX remote player configs, matching the Android player-config source and refresh behavior.
-- Client playback nonce generation for each stream extraction request.
-- Initial iOS BotGuard provider using a non-persistent WKWebView for JavaScript execution and Ktor Darwin for fixed HTTPS BotGuard requests.
-- Visitor-bound streaming PoToken caching and video-ID-bound player PoToken generation in memory; no Google account cookies are read or attached.
-- Best-effort resolver prewarm at player initialization to load player config, cipher support, and (when available) attestation before the first play tap.
-- UI state for stream-resolution progress and resolver errors.
-- Catalog playback controls now hand songs/videos from Search and Home shelves into the AVPlayer queue; browse pages provide play-per-track and play-all actions.
-- Upstream GPL-3.0 license and third-party notices copied into this derivative repository.
+## Implemented in the current development branch
 
-Still not integrated or not fully verified:
-- WKWebView BotGuard initialization and token-provider code compile successfully in iOS CI. Live challenge execution, PoToken generation, attestation-gated stream extraction, and audible playback still require runtime verification; YouTube can change its challenge protocol.
-- Authenticated Google/YouTube account sessions, account/channel switching, account likes, and server-synced playlists.
-- Deeper nested browse parity, continuation for shelves inside complex artist pages, and continuation edge-case compatibility still need live-response testing.
-- Other Android catalogue/add-on sources such as JioSaavn and custom modules.
-- Persistent per-track local TTML import/export (5 MB import cap); selectable automatic, lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato and LRCLIB providers; on-demand lyric translation to Indonesian, English, Malay, Japanese, Korean, Chinese, Spanish, French and German (line timing preserved).
-- Download manager, offline audio, remote recommendations, remaining Smart Playlist metadata filters (genre and release-year are not yet available in the iOS track catalogue), and cross-device sync.
-- Native DSP, equalizer, crossfade, advanced codecs, USB audio, and specialized device-routing parity.
-- TestFlight or App Store release signing.
+- SwiftUI app with Beranda, Explore and Koleksi tabs; catalogue search opens globally from the main screens.
+- Combined floating material dock with mini-player transport controls and tab navigation; dark BitChord palette with lavender accent, rounded artwork cards and horizontal music shelves.
+- Explore mood/genre grid from FEmusic_moods_and_genres, category browse detail and artwork lookup.
+- Home feed from FEmusic_home, with Home/Search/browse/category continuation paging.
+- WEB_REMIX Search with All/Songs/Videos/Albums/Artists/Playlists filters, debounced query suggestions, local recent-search history and pagination.
+- Album/artist/playlist browse pages with headers, artwork, related shelves, play-per-track/play-all and local collection actions.
+- Persistent local playlists and favorites using versioned UserDefaults JSON keys; local data does not require login.
+- Local listening history with play counts and AVPlayer elapsed listening time; totals are shown in the History tab. Pending progress is flushed when playback restarts, tracks change, or the app enters background.
+- Play-count Mix and saved local Smart Playlist rules: minimum play count, optional artist filter, duration bounds, last-played window, ALL/ANY matching, and most-played/recently-played/most-listened sorting. Genre and release-year rules remain unavailable because the current iOS catalogue model does not expose those fields consistently.
+- AVPlayer queue with enqueue/removal, next/previous, shuffle, repeat Off/All/One, automatic advance and manual drag-and-drop queue reordering.
+- Now Playing screen and mini-player with artwork, seek, favorite, add-to-playlist, queue inspection and removal.
+- Player settings with persistent 0.75×–2.0× playback speed, persisted repeat mode, sleep timer presets and custom 5-minute steps up to 12 hours, stop-after-current-track, and optional 30-second fade-out.
+- MPNowPlayingInfoCenter / MPRemoteCommandCenter controls, audio-session interruption handling, headphone-removal pause and background audio configuration.
+- Lyrics providers: automatic fallback or manual selection of lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato and LRCLIB.
+- On-demand lyric translation to Indonesian, English, Malay, Japanese, Korean, Simplified/Traditional Chinese, Spanish, French and German. Original line timestamps are preserved; translated lines use line-level rather than syllable karaoke timing.
+- Persistent per-track local TTML import/export with line, word and syllable timestamps; imported files are size-limited to 5 MB and can be removed from the lyrics menu.
+- Kotlin Multiplatform resolver-kmp module pinned to the same InnerTubeX v0.7.0 dependency used by Android.
+- Ktor Darwin iOS transport; HTTPS direct-audio stream handoff to AVPlayer, persistent remote player-config cache, and per-request client playback nonce.
+- Initial iOS WEB_BOTGUARD provider using a non-persistent WKWebView. Visitor/video-bound token values are memory-only; Google account cookies are not read or sent.
+- GPL-3.0 license and third-party attribution notices copied into the derivative repository.
 
-The resolver uses InnerTubeX `v0.7.0`, matching Android's pinned dependency. It requests direct audio transport because AVPlayer cannot consume the Android/SABR segmented path directly. The iOS PoToken provider uses an isolated non-persistent WebKit data store and does not use Google account cookies. The provider is a best-effort technical integration, not a guarantee that every YouTube item will be playable.
+## Not integrated or not fully verified
 
-Validation:
-- GitHub Actions passed at commit `b0a5aebd5c2e2dcc5542044c4b6c7dfd1acd87f9`: InnerTubeX iOS XCFramework build, XcodeGen project generation, iOS Simulator compile, and an install/launch smoke test on an available iPhone Simulator.
-- The smoke test installed bundle `id.musikku.ios`, launched the app, and confirmed its process remained alive for the 10-second check.
-- QuickJS was upgraded to `1.0.18` (with Kotlin Multiplatform `2.4.21` and Gradle `9.8.2`). The earlier QuickJS simulator linker warnings are gone; the remaining App Intents metadata-skip warning is expected because this app does not depend on `AppIntents.framework`.
-- CI install/launch validation does not verify live BotGuard challenge compatibility, PoToken generation, YouTube stream extraction, or audible playback. Those still require runtime testing with a real playback request.
-- Physical-iPhone playback, background audio, audio routing, and lock-screen tests remain outstanding.
+- Live BotGuard challenge execution, visitor/video PoToken generation, attestation-gated stream extraction and audible playback have not yet been verified on a physical iPhone.
+- Physical-device background playback, lock-screen interaction, Bluetooth/headset routing, interruptions and Wi-Fi/cellular handoff still need regression testing.
+- Authenticated Google/YouTube account sessions, account/channel switching, account-backed likes and cloud-synced playlists are not implemented.
+- Deeper nested browse parity and Android-specific remote recommendations remain incomplete.
+- Additional Android catalogue/add-on sources, external playlist import and Listen Together/party sync are not ported.
+- Smart Playlist genre/release-year matching is not available without reliable catalogue metadata.
+- Download manager/offline audio are outside the current online-first iOS scope.
+- Advanced DSP/equalizer/crossfade, specialised codecs, USB exclusive/bit-perfect audio and Android-specific device-routing behaviour are not ported.
+- TestFlight/App Store signing and release regression testing remain outstanding.
 
+## Validation
 
-Pull request: [#1 — phase-1-ui-library-queue → main](https://github.com/Rulzz77/MusikKu-iOS-Port/pull/1). The PR remains open for further testing and review.
+- GitHub Actions run #72 passed at commit 2d9b395: InnerTubeX iOS XCFramework build, XcodeGen generation, Simulator compile, Simulator install/launch, unsigned arm64 iPhone build, IPA packaging and artifact upload.
+- Run #72's unsigned IPA is for that earlier source revision only. It does not include the later player, lyrics and Smart Playlist changes; use an artifact from a successful newer run when available.
+- Latest source validation is running in GitHub Actions run #83 at commit f17b617. Its Simulator build/launch, unsigned iPhone IPA and artifact upload are not yet confirmed.
+- The iOS Simulator smoke test only proves that the app installs and stays launched. It does not establish live BotGuard compatibility, PoToken generation, YouTube stream extraction or audible playback.
+- QuickJS was upgraded to 1.0.18 with Kotlin Multiplatform 2.4.21 and Gradle 9.8.2; the prior QuickJS simulator linker warnings are gone. The remaining App Intents metadata-skip warning is expected because this app does not depend on AppIntents.framework.
+- Physical-iPhone playback, background audio, audio routing and lock-screen tests remain outstanding.
+
+Pull request: #1 — phase-1-ui-library-queue to main. The PR remains open and has not been merged.

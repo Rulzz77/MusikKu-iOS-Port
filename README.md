@@ -4,30 +4,37 @@ This repository contains the separate native iOS project for MusikKu. It does no
 
 ## Current status
 
-The iOS branch now follows Android's main navigation and several core workflows, but it is **not yet feature-equivalent or release-ready**.
+The native iOS port now follows Android's main navigation and several core workflows, but it is **not yet fully feature-equivalent or release-ready**.
 
-Implemented in source on branch `phase-1-ui-library-queue`:
+Implemented in source on branch phase-1-ui-library-queue:
 
-- SwiftUI tabs for Beranda, Explore, and Koleksi, with global search and a floating translucent mini-player/navigation dock.
+- SwiftUI tabs for Beranda, Explore and Koleksi, with global search and a floating translucent dock combining mini-player and navigation.
 - Android-aligned dark palette, mood/genre Explore grid, category detail and Home feed shelves.
-- WEB_REMIX catalog search with all/song/video/album/artist/playlist filters, debounced query suggestions, recent-search history and result pagination.
-- Home feed continuation, album/artist/playlist browse details and browse/category continuation.
-- Local playlists, favorites, listening history, play counts, play-count-based Mix and local Smart Playlist rules.
-- AVPlayer queue with play-all, enqueue/remove, next/previous, shuffle, repeat-one, automatic advance and manual queue reordering.
-- Mini-player, full Now Playing sheet, artwork, seeking, favorite, add-to-playlist, queue and lyrics sheets.
+- WEB_REMIX catalog search with All/Songs/Videos/Albums/Artists/Playlists filters, debounced query suggestions, recent-search history and result pagination.
+- Home feed, album/artist/playlist browse pages and category continuation paging.
+- Local playlists, favorites, listening history, play counts, elapsed listening time, play-count Mix and Smart Playlist rules.
+- Smart Playlist filters for minimum plays, optional artist, track-duration bounds and last-played window; ALL/ANY matching; sorting by most played, recently played or most listened. Genre/year rules await reliable catalogue metadata.
+- AVPlayer queue with play-all, enqueue/remove, next/previous, shuffle, repeat Off/All/One, automatic advance and manual queue reordering.
+- Now Playing and mini-player with artwork, seeking, favorite, add-to-playlist, queue controls and lyrics.
+- Player settings with persistent speed (0.75×–2.0×), repeat mode, sleep timer presets/custom durations up to 12 hours, stop-after-current-track and optional 30-second fade-out.
 - Lock-screen / Control Center commands and audio-session interruption/headphone-removal handling.
-- Lyrics providers: lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato and LRCLIB fallback; TTML line/word/syllable timing.
-- Kotlin Multiplatform resolver using the same InnerTubeX v0.7.0 dependency as Android, Ktor Darwin and an initial non-persistent WKWebView BotGuard token provider.
+- Lyrics providers with automatic fallback or manual source selection: lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato and LRCLIB.
+- On-demand lyrics translation to Indonesian, English, Malay, Japanese, Korean, Chinese, Spanish, French and German.
+- Persistent per-track TTML import/export, retaining line/word/syllable timing where available.
+- Kotlin Multiplatform InnerTubeX v0.7.0 resolver, Ktor Darwin, direct HTTPS stream handoff to AVPlayer and an initial non-persistent WKWebView BotGuard provider.
 
-The local Smart Playlist implementation is intentionally narrower than Android: it currently supports a minimum play count, optional artist filter and most-played/recently-played sorting. The full Android rules engine, additional provider/add-on sources, external playlist imports, advanced DSP, party sync and account/cloud functionality are not yet ported.
+Local playlists, favorites, search history, listening stats and Smart Playlist rules do not require a login. There is no Google account/cloud sync yet. The Smart Playlist engine is still narrower than Android because genre and release-year metadata is not reliably available in the iOS catalogue model.
 
 ## Build and validation
 
-GitHub Actions builds the InnerTubeX iOS XCFramework, generates the Xcode project, compiles for the iOS Simulator, launches the app in an iPhone Simulator and exports an unsigned arm64 IPA artifact for Sideloadly. A previously successful run created an IPA for an earlier commit; each newer source commit must pass its own workflow before its artifact is used.
+GitHub Actions builds the InnerTubeX iOS XCFramework, generates the Xcode project, compiles for iOS Simulator, launches the app in an iPhone Simulator and exports an unsigned arm64 IPA for Sideloadly.
 
-The unsigned IPA is intended for personal device testing with Sideloadly. It is **not** an App Store/TestFlight signed release. Signing and installation on a physical iPhone do not prove that live YouTube playback works.
+- Run #72 passed at commit 2d9b395, including Simulator install/launch and unsigned IPA packaging. That artifact belongs to an earlier source revision.
+- Run #83 is validating the newer player/lyrics/Smart Playlist source at commit f17b617; the latest IPA has not yet been confirmed.
+- An unsigned IPA is for personal device testing with Sideloadly, not an App Store/TestFlight signed release.
+- A build or Simulator launch does not verify live BotGuard challenge compatibility, PoToken generation, stream extraction or audible playback.
 
-Latest code changes still require CI validation. Live BotGuard challenge execution, visitor/video PoToken generation, real stream extraction, audible playback, background audio, lock-screen behaviour and audio routing must be verified on a physical iPhone.
+Actual YouTube playback, background audio, lock-screen controls and audio routing must be verified on a physical iPhone before release.
 
 ## Requirements for local build
 
@@ -37,42 +44,42 @@ Latest code changes still require CI validation. Live BotGuard challenge executi
 
 Install XcodeGen:
 
-```bash
+~~~bash
 brew install xcodegen
-```
+~~~
 
 Build the Kotlin Multiplatform resolver framework and generate the iOS project:
 
-```bash
+~~~bash
 gradle --no-daemon :resolver-kmp:assembleMusikKuResolverKitReleaseXCFramework
 xcodegen generate --spec ios/project.yml --project ios
-```
+~~~
 
 Build for Simulator:
 
-```bash
-xcodebuild -project ios/MusikKu.xcodeproj \
-  -scheme MusikKu \
-  -sdk iphonesimulator \
-  -destination 'generic/platform=iOS Simulator' \
+~~~bash
+xcodebuild -project ios/MusikKu.xcodeproj \\
+  -scheme MusikKu \\
+  -sdk iphonesimulator \\
+  -destination 'generic/platform=iOS Simulator' \\
   CODE_SIGNING_ALLOWED=NO build
-```
+~~~
 
 Open the generated project in Xcode:
 
-```bash
+~~~bash
 open ios/MusikKu.xcodeproj
-```
+~~~
 
 ## Important limitations
 
 - Catalog metadata and stream extraction depend on third-party services whose protocols and availability may change.
-- A successful build or simulator launch does not prove live BotGuard compatibility, stream extraction or audible playback.
 - Background audio is declared and AVAudioSession is configured, but physical iPhone, Bluetooth and lock-screen tests are still required.
-- Playlists, favorites, history and Smart Playlist rules are stored on this device only. No cloud account sync is included.
-- The app is online-first; offline download functionality is not part of the current iOS scope.
+- Playlists, favorites, history and Smart Playlist rules are stored locally on this device only; there is no cloud account sync.
+- Offline download is not part of the current online-first iOS scope.
+- Advanced DSP/equalizer/crossfade, specialised codecs, USB exclusive/bit-perfect audio, extra Android add-on sources and party sync are not ported.
 - A technical build does not establish third-party service permission or App Store approval.
 
-See [the porting audit](docs/IOS_PORTING_AUDIT.md), [feature migration matrix](docs/FEATURE_MIGRATION_MATRIX.md) and [porting status](PORTING_STATUS.md) for implementation details and remaining work.
+See the porting audit, feature migration matrix and porting status for implementation details and remaining work.
 
-The iOS repository carries the upstream GPL-3.0 license and third-party attribution from the Android MusikKu source; see [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Review all license and distribution obligations before publishing an iOS binary.
+The iOS repository carries the upstream GPL-3.0 license and third-party attribution from the Android MusikKu source; see LICENSE and THIRD_PARTY_NOTICES.md. Review all license and distribution obligations before publishing an iOS binary.

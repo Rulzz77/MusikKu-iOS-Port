@@ -1,34 +1,35 @@
 # Feature Migration Matrix
 
-This matrix distinguishes source implementation from runtime validation. A native iOS screen or successful simulator build does not prove that a remote provider, BotGuard challenge, audio stream, or physical-device audio route works.
+This matrix distinguishes source implementation from runtime validation. A native iOS screen or successful Simulator build does not prove that a remote provider, BotGuard challenge, audio stream or physical-device audio route works.
 
 | Android MusikKu capability | iOS implementation | Status |
 |---|---|---|
-| Main navigation | SwiftUI Beranda / Explore / Koleksi tabs; global search sheet; floating material dock with mini-player | Implemented in source; latest visual changes still require CI validation |
-| Android visual language | Dark BitChord palette, lavender accent, rounded cards, artwork shelves, floating translucent dock | Adapted to SwiftUI; pixel-identical parity is not intended |
-| Home feed | WEB_REMIX FEmusic_home, artwork shelves, recent plays, play-count Mix, continuation paging | Implemented in source; live response/pagination needs device testing |
-| Explore / mood / genre | FEmusic_moods_and_genres, category grid, browse detail, category continuation paging | Implemented in source; parser depends on live third-party response format |
-| Search | WEB_REMIX all/song/video/album/artist/playlist filters, query suggestions, local recent-search list, result continuation paging | Implemented in source; live suggestions/continuation requests need runtime validation |
-| Album / artist / playlist pages | Header/artwork, track rows, related shelves, play-all, save/favorite, continuation paging | Implemented in source; deep nested browse parity remains incomplete |
-| Local playlists / favorites | Create/delete local playlists, add/remove tracks, favorites | Implemented with local UserDefaults persistence; no account required |
-| Listening history / statistics | Locally records play starts, last-played timestamp and play count | Implemented in source; only local to this device |
-| Mix / Smart Playlists | Play-count Mix; saved local rules with minimum play count, optional artist filter, most-played/recent sorting | Basic subset implemented; Android's full rules (genre, year, duration, date windows, ALL/ANY match) remain unported |
-| Player / queue | AVPlayer queue, enqueue/remove, next/previous, shuffle, repeat-one, auto advance, manual queue reordering | Implemented in source; playback reliability requires physical-device verification |
-| Now Playing | Artwork, seek, favorite, add-to-playlist, lyrics sheet, queue sheet, mini-player | Implemented in source; further Android player customisation remains |
-| Lock screen / Control Center | MPNowPlayingInfoCenter, MPRemoteCommandCenter, artwork, transport and seek | Implemented in source; must be verified on a physical iPhone |
-| Background audio / interruptions | AVAudioSession playback, background audio mode, interruption and headphone-removal handling | Configured in source; physical-device and Bluetooth tests pending |
-| Lyrics | lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato, LRCLIB fallback; TTML line/word/syllable timing | Core provider chain implemented; translation/provider settings/local TTML import/export remain |
-| Resolver / YouTube stream | Kotlin Multiplatform InnerTubeX v0.7.0, Ktor Darwin, HTTPS audio handoff, iOS WEB_BOTGUARD provider | XCFramework/build and prior simulator launch pass; live challenge execution, PoToken generation, stream extraction and audible playback unverified |
-| Guest-first usage | Local library actions do not require account login | Implemented for local data; no cloud sync |
+| Main navigation | SwiftUI Beranda / Explore / Koleksi; global Search sheet; floating material dock with mini-player | Implemented in source; latest build validation pending |
+| Android visual language | Dark BitChord palette, lavender accent, rounded cards, artwork shelves and translucent dock | Adapted to SwiftUI; pixel-identical parity is not intended |
+| Home feed | WEB_REMIX FEmusic_home, artwork shelves, recent plays, play-count Mix and continuation paging | Implemented in source; live response/pagination needs device testing |
+| Explore / mood / genre | FEmusic_moods_and_genres, category grid, browse detail and category continuation paging | Implemented in source; parser depends on live third-party response format |
+| Search | WEB_REMIX filters, query suggestions, local recent-search list and result continuation paging | Implemented in source; live suggestions/continuations need runtime validation |
+| Album / artist / playlist pages | Header/artwork, tracks, related shelves, play-all, save/favorite and continuation paging | Implemented in source; deeper nested browse parity remains incomplete |
+| Local playlists / favorites | Create/delete local playlists, add/remove tracks and favorites | Implemented with local UserDefaults persistence; no account required |
+| Listening history / statistics | Play counts, last-played time, AVPlayer elapsed listening time and History totals | Implemented in source; stored locally on this device |
+| Mix / Smart Playlists | Minimum plays, optional artist, duration bounds, last-played window, ALL/ANY matching, most-played/recent/most-listened sorting | Substantial local subset implemented; genre/release-year metadata filters remain unavailable |
+| Player / queue | AVPlayer queue, enqueue/remove, next/previous, shuffle, repeat Off/All/One, auto advance and manual reordering | Implemented in source; playback reliability requires physical-device verification |
+| Player settings | Persistent 0.75×–2.0× speed and repeat; sleep timer presets/custom up to 12 hours, stop-after-track and 30-second fade | Implemented in source; timer/audio behaviour requires device testing |
+| Now Playing | Artwork, seek, favorite, add-to-playlist, lyrics and queue sheets, mini-player | Implemented in source; further Android player customisation remains |
+| Lock screen / Control Center | MPNowPlayingInfoCenter, MPRemoteCommandCenter, artwork, transport and seek | Implemented in source; verify on a physical iPhone |
+| Background audio / interruptions | AVAudioSession playback, background audio mode, interruption/headphone handling | Configured in source; physical-device/Bluetooth tests pending |
+| Lyrics | Automatic or manual provider: lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato, LRCLIB; TTML line/word/syllable timing; translation and persistent per-track TTML import/export | Implemented in source; third-party services and file round-trip need runtime testing |
+| Resolver / YouTube stream | KMP InnerTubeX v0.7.0, Ktor Darwin, HTTPS audio handoff, iOS WEB_BOTGUARD | Earlier build/launch passed; live challenge, PoToken, extraction and audible playback unverified |
+| Guest-first usage | Local playlists/favorites/history/Smart Mix do not require login | Implemented for local data; no cloud sync |
 | Google / YouTube account, remote likes | Approved OAuth, account/channel switching and account-backed library | Not implemented |
 | Additional Android sources / add-ons | Separate provider adapters and source-specific terms/permissions | Not implemented |
 | External playlist import | Provider-specific import adapters and permission review | Not implemented |
-| Offline downloads | User's current iOS direction is online catalog playback | Not in current iOS scope |
+| Offline downloads | Online-first catalog playback | Not in current iOS scope |
 | Full Android DSP / equalizer / crossfade | Native audio processing and AVPlayer/AVAudioEngine integration | Not implemented |
 | Listen Together / party sync | New native iOS client and protocol testing | Not implemented |
 | USB exclusive / bit-perfect / advanced codecs | Reassess against iOS audio-session and accessory APIs | Not implemented; no parity claim |
 | Android APK updater | TestFlight / App Store distribution | Not applicable on iOS |
-| Release signing | Apple signing, provisioning and App Store Connect | Not configured; current GitHub artifact is unsigned for Sideloadly testing |
+| Release signing | Apple signing, provisioning and App Store Connect | Not configured; current artifact is unsigned for Sideloadly testing |
 
 ## Resolver architecture
 
@@ -42,10 +43,10 @@ The provider is a best-effort technical integration. A successful framework buil
 - [ ] At least one real song resolves to an HTTPS stream and produces audible output.
 - [ ] Background audio continues while the iPhone screen is locked.
 - [ ] Lock-screen / Control Center title, artist, artwork, play, pause, seek and skip.
-- [ ] Phone/Siri interruptions, unplugging wired headphones, Bluetooth disconnect and route changes.
+- [ ] Phone/Siri interruptions, wired-headphone removal, Bluetooth disconnect and route changes.
 - [ ] Wi-Fi and cellular changes during search and playback.
-- [ ] Local playlists, favorites, history and Smart Mix survive app relaunch.
-- [ ] Lyrics fallback behaves when no provider has a match.
+- [ ] Local playlists, favorites, history, TTML imports and Smart Mix survive app relaunch.
+- [ ] Lyrics provider fallback and manual provider selection behave when a provider has no match.
 - [ ] Third-party service terms, attribution, GPL-3.0 obligations and privacy disclosures are reviewed before release.
 - [ ] A signed physical-device TestFlight build passes regression testing.
 
