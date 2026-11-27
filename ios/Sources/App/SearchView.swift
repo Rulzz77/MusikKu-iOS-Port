@@ -8,6 +8,7 @@ struct SearchView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var hasSearched = false
+    @State private var selectedBrowseItem: CatalogItem?
     @FocusState private var searchFieldFocused: Bool
 
     var body: some View {
@@ -55,6 +56,13 @@ struct SearchView: View {
                         .font(.subheadline)
                     }
                 }
+            }
+        }
+        .sheet(item: $selectedBrowseItem) { item in
+            if item.browseID != nil {
+                CatalogBrowseDetailSheet(item: item)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }
@@ -156,6 +164,10 @@ struct SearchView: View {
                         onSave: {
                             guard item.canSaveAsTrack else { return }
                             library.toggleFavorite(item.asMusicTrack())
+                        },
+                        onOpen: {
+                            guard item.browseID != nil else { return }
+                            selectedBrowseItem = item
                         }
                     )
                     .padding(.horizontal, 18)
@@ -248,45 +260,59 @@ private struct CatalogResultRow: View {
     let item: CatalogItem
     let isSaved: Bool
     let onSave: () -> Void
+    let onOpen: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            artwork
+        HStack(spacing: 8) {
+            Button(action: onOpen) {
+                HStack(spacing: 12) {
+                    artwork
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(item.title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Text(item.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
 
-                    if item.isExplicit {
-                        Text("E")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(MusikKuStyle.secondary)
-                            .padding(3)
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 3)
-                                    .stroke(MusikKuStyle.secondary, lineWidth: 0.8)
+                            if item.isExplicit {
+                                Text("E")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(MusikKuStyle.secondary)
+                                    .padding(3)
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 3)
+                                            .stroke(MusikKuStyle.secondary, lineWidth: 0.8)
+                                    }
                             }
+                        }
+
+                        Text(item.artist.isEmpty ? item.subtitle : item.artist)
+                            .font(.caption)
+                            .foregroundStyle(MusikKuStyle.secondary)
+                            .lineLimit(1)
+
+                        HStack(spacing: 7) {
+                            Text(kindLabel)
+                            if let duration = item.durationSeconds {
+                                Text("•")
+                                Text(Self.time(duration))
+                            }
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(MusikKuStyle.secondary)
+                    }
+
+                    if item.browseID != nil {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(MusikKuStyle.secondary.opacity(0.7))
                     }
                 }
-
-                Text(item.artist.isEmpty ? item.subtitle : item.artist)
-                    .font(.caption)
-                    .foregroundStyle(MusikKuStyle.secondary)
-                    .lineLimit(1)
-
-                HStack(spacing: 7) {
-                    Text(kindLabel)
-                    if let duration = item.durationSeconds {
-                        Text("•")
-                        Text(Self.time(duration))
-                    }
-                }
-                .font(.caption2)
-                .foregroundStyle(MusikKuStyle.secondary)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .disabled(item.browseID == nil)
 
             Spacer(minLength: 0)
 
@@ -300,11 +326,6 @@ private struct CatalogResultRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isSaved ? "Hapus dari lagu disukai" : "Simpan ke lagu disukai")
-            } else {
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(MusikKuStyle.secondary.opacity(0.7))
-                    .padding(.horizontal, 7)
             }
         }
         .padding(9)
@@ -357,5 +378,226 @@ private struct CatalogResultRow: View {
             return "\(hours):\(String(format: "%02d", minutes)):\(String(format: "%02d", remainder))"
         }
         return "\(minutes):\(String(format: "%02d", remainder))"
+    }
+}
+
+
+private struct CatalogBrowseDetailSheet: View {
+    @EnvironmentObject private var library: MusicLibraryStore
+    @Environment(\.dismiss) private var dismiss
+    let item: CatalogItem
+
+    @State private var page: CatalogBrowsePage?
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading && page == nil {
+                    ProgressView("Memuat halaman katalog…")
+                        .tint(MusikKuStyle.accent)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let page {
+                    detailContent(page)
+                } else if let errorMessage {
+                    VStack(spacing: 12) {
+                        Image(systemName: "wifi.exclamationmark")
+                            .font(.system(size: 36))
+                            .foregroundStyle(MusikKuStyle.accent)
+                        Text("Halaman tidak dapat dimuat")
+                            .font(.headline)
+                        Text(errorMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(MusikKuStyle.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Coba lagi") {
+                            Task { await loadPage() }
+                        }
+                        .foregroundStyle(MusikKuStyle.accent)
+                    }
+                    .padding(26)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .background(MusikKuStyle.background.ignoresSafeArea())
+            .navigationTitle(item.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Tutup") { dismiss() }
+                }
+            }
+        }
+        .task { await loadPage() }
+    }
+
+    private func detailContent(_ page: CatalogBrowsePage) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack(spacing: 15) {
+                    AsyncImage(url: page.artworkURL ?? item.artworkURL) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        case .empty:
+                            artworkPlaceholder.overlay { ProgressView().tint(MusikKuStyle.accent) }
+                        case .failure:
+                            artworkPlaceholder
+                        @unknown default:
+                            artworkPlaceholder
+                        }
+                    }
+                    .frame(width: 112, height: 112)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(page.title)
+                            .font(.title3.bold())
+                            .foregroundStyle(.primary)
+                            .lineLimit(3)
+
+                        Text(page.subtitle.isEmpty ? item.kind.rawValue.capitalized : page.subtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(MusikKuStyle.secondary)
+                            .lineLimit(3)
+
+                        Text("\(page.tracks.count) lagu pada halaman ini")
+                            .font(.caption)
+                            .foregroundStyle(MusikKuStyle.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(16)
+                .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 18))
+
+                if !page.tracks.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Lagu")
+                            .font(.headline)
+
+                        ForEach(page.tracks) { track in
+                            HStack(spacing: 11) {
+                                AsyncImage(url: track.artworkURL) { phase in
+                                    if case .success(let image) = phase {
+                                        image.resizable().scaledToFill()
+                                    } else {
+                                        artworkPlaceholder
+                                    }
+                                }
+                                .frame(width: 44, height: 44)
+                                .clipShape(RoundedRectangle(cornerRadius: 9))
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(track.title)
+                                        .font(.subheadline.weight(.semibold))
+                                        .lineLimit(1)
+                                    Text(track.artist)
+                                        .font(.caption)
+                                        .foregroundStyle(MusikKuStyle.secondary)
+                                        .lineLimit(1)
+                                }
+
+                                Spacer(minLength: 0)
+
+                                Button {
+                                    library.toggleFavorite(track.asMusicTrack())
+                                } label: {
+                                    Image(systemName: library.isFavorite(track.asMusicTrack()) ? "heart.fill" : "heart")
+                                        .foregroundStyle(library.isFavorite(track.asMusicTrack()) ? .pink : MusikKuStyle.secondary)
+                                        .frame(width: 38, height: 38)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Simpan lagu ke favorit")
+                            }
+                            .padding(9)
+                            .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 13))
+                        }
+                    }
+                }
+
+                ForEach(page.shelves) { shelf in
+                    CatalogDetailShelf(shelf: shelf)
+                }
+
+                if page.tracks.isEmpty && page.shelves.isEmpty {
+                    Text("Belum ada daftar lagu atau shelf yang dapat ditampilkan untuk halaman ini.")
+                        .font(.subheadline)
+                        .foregroundStyle(MusikKuStyle.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(24)
+                }
+
+                Text("Halaman katalog ini berisi metadata. Pemutaran dan sinkronisasi akun belum terhubung pada tahap iOS ini.")
+                    .font(.caption)
+                    .foregroundStyle(MusikKuStyle.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(18)
+        }
+    }
+
+    private var artworkPlaceholder: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(MusikKuStyle.accent.opacity(0.16))
+            .overlay {
+                Image(systemName: item.kind == .artist ? "person.fill" : "music.note")
+                    .font(.title2)
+                    .foregroundStyle(MusikKuStyle.accent)
+            }
+    }
+
+    @MainActor
+    private func loadPage() async {
+        guard let browseID = item.browseID else { return }
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            page = try await MusicCatalogService.shared.browsePage(browseID: browseID)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct CatalogDetailShelf: View {
+    let shelf: CatalogHomeShelf
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(shelf.title)
+                .font(.headline)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(shelf.items) { item in
+                        VStack(alignment: .leading, spacing: 6) {
+                            AsyncImage(url: item.artworkURL) { phase in
+                                if case .success(let image) = phase {
+                                    image.resizable().scaledToFill()
+                                } else {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(MusikKuStyle.accent.opacity(0.16))
+                                }
+                            }
+                            .frame(width: 118, height: 118)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                            Text(item.title)
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(2)
+                                .frame(width: 118, alignment: .leading)
+                            Text(item.artist.isEmpty ? item.subtitle : item.artist)
+                                .font(.caption2)
+                                .foregroundStyle(MusikKuStyle.secondary)
+                                .lineLimit(2)
+                                .frame(width: 118, alignment: .leading)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

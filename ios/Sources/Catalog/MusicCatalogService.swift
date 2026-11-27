@@ -116,6 +116,122 @@ actor MusicCatalogService {
         .uniqued(by: { "\($0.kind.rawValue):\($0.id)" })
     }
 
+    func browsePage(browseID: String) async throws -> CatalogBrowsePage {
+        let locale = Locale.current
+        let language = locale.languageCode ?? "en"
+        let region = locale.regionCode ?? "US"
+        let clientVersion = await resolveClientVersion()
+
+        guard var components = URLComponents(string: "\(musicOrigin)/youtubei/v1/browse") else {
+            throw MusicCatalogError.invalidURL
+        }
+        components.queryItems = [
+            URLQueryItem(name: "prettyPrint", value: "false"),
+            URLQueryItem(name: "hl", value: language)
+        ]
+        guard let url = components.url else { throw MusicCatalogError.invalidURL }
+
+        let body: [String: Any] = [
+            "context": [
+                "client": [
+                    "clientName": "WEB_REMIX",
+                    "clientVersion": clientVersion,
+                    "hl": language,
+                    "gl": region
+                ],
+                "user": ["lockedSafetyMode": false],
+                "request": ["useSsl": true]
+            ],
+            "browseId": browseID
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 25
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(language, forHTTPHeaderField: "Accept-Language")
+        request.setValue(musicOrigin, forHTTPHeaderField: "Origin")
+        request.setValue(musicOrigin, forHTTPHeaderField: "X-Origin")
+        request.setValue("\(musicOrigin)/", forHTTPHeaderField: "Referer")
+        request.setValue("67", forHTTPHeaderField: "X-YouTube-Client-Name")
+        request.setValue(clientVersion, forHTTPHeaderField: "X-YouTube-Client-Version")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw MusicCatalogError.invalidResponse
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw MusicCatalogError.httpStatus(http.statusCode)
+        }
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw MusicCatalogError.invalidResponse
+        }
+        return parseBrowsePage(root, browseID: browseID)
+    }
+
+    private func parseBrowsePage(_ root: [String: Any], browseID: String) -> CatalogBrowsePage {
+        let headerNames = [
+            "musicResponsiveHeaderRenderer",
+            "musicImmersiveHeaderRenderer",
+            "musicDetailHeaderRenderer",
+            "musicEditablePlaylistDetailHeaderRenderer"
+        ]
+        let header = headerNames
+            .compactMap { Self.collectRenderers(root, named: $0).first }
+            .first
+
+        let title = Self.runsText(header?["title"]).nonEmpty ?? browseID
+        let strapline = Self.runsText(header?["strapline"])
+        let subtitle = Self.runsText(header?["subtitle"])
+        let headerSubtitle = [strapline, subtitle]
+            .filter { !$0.isEmpty }
+            .uniqued(by: { $0 })
+            .joined(separator: " • ")
+
+        let thumbnailRenderer = Self.collectRenderers(header ?? root, named: "musicThumbnailRenderer").first
+        let thumbnailList = Self.nested(thumbnailRenderer, "thumbnail", "thumbnails") as? [[String: Any]]
+            ?? Self.nested(thumbnailRenderer, "thumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails") as? [[String: Any]]
+            ?? []
+        let artworkURL = Self.bestThumbnailURL(thumbnailList)
+
+        let tracks = Self.collectRenderers(root, named: "musicResponsiveListItemRenderer")
+            .compactMap { parseTrack($0) }
+            .uniqued(by: { $0.id })
+
+        let shelves = Self.collectRenderers(root, named: "musicCarouselShelfRenderer")
+            .compactMap { parseCarouselShelf($0) }
+
+        return CatalogBrowsePage(
+            id: browseID,
+            title: title,
+            subtitle: headerSubtitle,
+            artworkURL: artworkURL,
+            tracks: tracks,
+            shelves: shelves
+        )
+    }
+
+    private func parseCarouselShelf(_ carousel: [String: Any]) -> CatalogHomeShelf? {
+        let header = Self.nested(carousel, "header", "musicCarouselShelfBasicHeaderRenderer")
+        let title = Self.runsText(Self.nested(header, "title"))
+        let subtitle = Self.runsText(Self.nested(header, "strapline"))
+        let contents = carousel["contents"] as? [Any] ?? []
+        let items = contents.compactMap { entry -> CatalogItem? in
+            if let twoRow = Self.nested(entry, "musicTwoRowItemRenderer") as? [String: Any] {
+                return parseTwoRowItem(twoRow)
+            }
+            if let row = Self.nested(entry, "musicResponsiveListItemRenderer") as? [String: Any] {
+                return parseBrowseItem(row) ?? parseTrack(row)
+            }
+            return nil
+        }
+        guard !title.isEmpty, !items.isEmpty else { return nil }
+        return CatalogHomeShelf(title: title, subtitle: subtitle, items: items)
+    }
+
     func homeFeed() async throws -> [CatalogHomeShelf] {
         let locale = Locale.current
         let language = locale.languageCode ?? "en"

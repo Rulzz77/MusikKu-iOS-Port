@@ -90,3 +90,13 @@ struct CatalogHomeShelf: Identifiable, Hashable {
         "\(title)|\(items.first?.id ?? "empty")"
     }
 }
+
+
+struct CatalogBrowsePage: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let artworkURL: URL?
+    let tracks: [CatalogItem]
+    let shelves: [CatalogHomeShelf]
+}
