@@ -11,16 +11,16 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 | Search | WEB_REMIX filters, query suggestions, local recent-search list and result continuation paging | Implemented in source; live suggestions/continuations need runtime validation |
 | Album / artist / playlist pages | Header/artwork, tracks, related shelves, play-all, save/favorite and continuation paging | Implemented in source; deeper nested browse parity remains incomplete |
 | Local playlists / favorites | Create/delete local playlists, add/remove tracks and favorites | Implemented with local UserDefaults persistence; no account required |
-| Spotify playlist import | Public Spotify embed metadata, strict title/primary-artist/duration matching, save matches as a local playlist | Implemented in source without login; incomplete playlists at the 100-row embed boundary are rejected; manual replacement is available for unmatched or failed rows |
+| Spotify playlist import | Public Spotify embed metadata, strict title/primary-artist/duration matching, save matches as a local playlist | Implemented in source without login; imports are rejected when Spotify's reported total exceeds the available embed rows; manual replacement is available for unmatched or failed rows |
 | Listening history / statistics | Play counts, last-played time, AVPlayer elapsed listening time and History totals | Implemented in source; stored locally on this device |
 | Mix / Smart Playlists | Minimum plays, optional artist, duration bounds, last-played window, ALL/ANY matching, most-played/recent/most-listened sorting | Substantial local subset implemented; genre/release-year metadata filters remain unavailable |
-| Player / queue | AVPlayer queue, enqueue/remove, next/previous, shuffle, repeat Off/All/One, auto advance and manual reordering | Implemented in source; playback reliability requires physical-device verification |
+| Player / queue | AVPlayer queue, enqueue/remove, next/previous, shuffle, repeat Off/All/One, auto advance, manual reordering, buffering-aware pause and fresh-resolution retry after AVPlayer item failure | Implemented in source; playback reliability requires physical-device verification |
 | Player settings | Persistent 0.75×–2.0× speed and repeat; sleep timer presets/custom up to 12 hours, stop-after-track and 30-second fade | Implemented in source; timer/audio behaviour requires device testing |
 | Now Playing | Artwork, seek, favorite, add-to-playlist, lyrics and queue sheets, mini-player | Implemented in source; further Android player customisation remains |
 | Lock screen / Control Center | MPNowPlayingInfoCenter, MPRemoteCommandCenter, artwork, transport and seek | Implemented in source; verify on a physical iPhone |
 | Background audio / interruptions | AVAudioSession playback, background audio mode, interruption/headphone handling | Configured in source; physical-device/Bluetooth tests pending |
 | Lyrics | Automatic or manual provider: lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato, LRCLIB; TTML line/word/syllable timing; translation and persistent per-track TTML import/export | Implemented in source; third-party services and file round-trip need runtime testing |
-| Resolver / YouTube stream | KMP InnerTubeX v0.7.0, Ktor Darwin, HTTPS audio handoff, iOS WEB_BOTGUARD | Earlier build/launch passed; live challenge, PoToken, extraction and audible playback unverified |
+| Resolver / YouTube stream | KMP InnerTubeX v0.7.0, Ktor Darwin, HTTPS audio handoff, iOS WEB_BOTGUARD, embedded config fallback and five-minute exclusion of recently failed stream clients | Source implementation mirrors Android's resolver recovery path; live challenge, PoToken, extraction and audible playback unverified |
 | Guest-first usage | Local playlists/favorites/history/Smart Mix do not require login | Implemented for local data; no cloud sync |
 | Google / YouTube account, remote likes | Approved OAuth, account/channel switching and account-backed library | Not implemented |
 | Additional Android sources / add-ons | Separate provider adapters and source-specific terms/permissions | Not implemented |
@@ -34,7 +34,7 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 
 ## Resolver architecture
 
-The iOS target consumes a Kotlin Multiplatform framework built from resolver-kmp. It pins InnerTubeX v0.7.0, matching Android. The iOS adapter uses Ktor Darwin and requests direct audio streams with HLS/SABR disabled before passing the HTTPS URL and required request headers to AVPlayer. The iOS WEB_BOTGUARD provider executes challenge JavaScript in a non-persistent WKWebView and sends fixed HTTPS requests through Ktor Darwin. Tokens are memory-only; Google account cookies are not read or sent.
+The iOS target consumes a Kotlin Multiplatform framework built from resolver-kmp. It pins InnerTubeX v0.7.0, matching Android. The iOS adapter uses Ktor Darwin and requests direct audio streams with HLS/SABR disabled before passing the HTTPS URL and required request headers to AVPlayer. If remote player-config retrieval fails, it falls back to the embedded player response; after AVPlayer rejects a stream, the selected client is excluded for up to five minutes on retry. The iOS WEB_BOTGUARD provider executes challenge JavaScript in a non-persistent WKWebView and sends fixed HTTPS requests through Ktor Darwin. Tokens are memory-only; Google account cookies are not read or sent.
 
 The provider is a best-effort technical integration. A successful framework build does not guarantee that YouTube's live challenge protocol or any particular stream remains compatible.
 
