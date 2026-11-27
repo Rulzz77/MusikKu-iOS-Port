@@ -83,7 +83,11 @@ jobs:
               and image.get("size") == "1024x1024"
               for image in asset.get("images", [])
           ), "AppIcon Contents.json is missing the universal 1024x1024 PNG entry"
-          print("AppIcon and privacy-manifest release metadata validation passed.")
+
+          legal_dir = Path("ios/Resources/Legal")
+          assert (legal_dir / "GPL-3.0.txt").read_bytes() == Path("LICENSE").read_bytes(), "Bundled GPL text is out of sync with LICENSE"
+          assert (legal_dir / "THIRD_PARTY_NOTICES.md").read_bytes() == Path("THIRD_PARTY_NOTICES.md").read_bytes(), "Bundled third-party notices are out of sync"
+          print("AppIcon, privacy manifest and bundled legal-notice validation passed.")
           PY
 
       - name: Build for iOS Simulator

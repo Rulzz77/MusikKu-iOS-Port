@@ -8,6 +8,7 @@ struct LibraryView: View {
     @State private var showingSpotifyImport = false
     @State private var showingCreateSmartPlaylist = false
     @State private var showingClearHistoryConfirmation = false
+    @State private var showingLegalNotices = false
     @State private var playlistName = ""
     let onSearch: () -> Void
 
@@ -38,6 +39,14 @@ struct LibraryView: View {
             .background(MusikKuStyle.background.ignoresSafeArea())
             .navigationTitle("Koleksi")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingLegalNotices = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityLabel("Tentang dan lisensi")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: onSearch) {
                         Image(systemName: "magnifyingglass")
@@ -112,6 +121,11 @@ struct LibraryView: View {
             }
             .sheet(isPresented: $showingSpotifyImport) {
                 SpotifyPlaylistImportView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showingLegalNotices) {
+                LegalNoticesView()
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }

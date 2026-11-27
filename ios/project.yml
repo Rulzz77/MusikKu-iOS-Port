@@ -21,6 +21,7 @@ targets:
     resources:
       - path: Resources/Assets.xcassets
       - path: Resources/PrivacyInfo.xcprivacy
+      - path: Resources/Legal
       - path: Support/LaunchScreen.storyboard
     info:
       path: Support/Info.plist
