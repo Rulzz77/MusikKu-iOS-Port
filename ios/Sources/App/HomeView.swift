@@ -9,6 +9,7 @@ struct HomeView: View {
     @State private var didLoadHome = false
     @State private var selectedHomeBrowseItem: CatalogItem?
     let onExplore: () -> Void
+    let onSearch: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -25,8 +26,15 @@ struct HomeView: View {
                             .foregroundStyle(MusikKuStyle.secondary)
                     }
 
+                    if !library.recentlyPlayed.isEmpty {
+                        recentlyPlayedSection
+                    }
+
+                    if library.mostPlayed.count >= 2 {
+                        frequentMixCard
+                    }
+
                     homeFeedContent
-                    playerCard
 
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Perpustakaan kamu")
@@ -112,6 +120,94 @@ struct HomeView: View {
         }
     }
 
+    private var recentlyPlayedSection: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack {
+                Text("Baru diputar")
+                    .font(.headline)
+                Spacer()
+                Text("Riwayat lokal")
+                    .font(.caption)
+                    .foregroundStyle(MusikKuStyle.secondary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(Array(library.recentlyPlayed.prefix(12))) { track in
+                        Button {
+                            playback.play(track)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 7) {
+                                ArtworkView(track: track, cornerRadius: 14)
+                                    .frame(width: 126, height: 126)
+                                Text(track.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .lineLimit(2)
+                                    .frame(width: 126, alignment: .leading)
+                                Text(track.artist)
+                                    .font(.caption)
+                                    .foregroundStyle(MusikKuStyle.secondary)
+                                    .lineLimit(1)
+                                    .frame(width: 126, alignment: .leading)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private var frequentMixCard: some View {
+        let mixTracks = Array(library.mostPlayed.prefix(25))
+        return Button {
+            playback.playQueue(mixTracks)
+        } label: {
+            HStack(spacing: 13) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [MusikKuStyle.accent, Color(red: 0.20, green: 0.72, blue: 0.67)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    Image(systemName: "waveform.path")
+                        .font(.system(size: 27, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 58, height: 58)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Mix favoritmu")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("Urutan dibuat dari lagu yang paling sering kamu putar")
+                        .font(.caption)
+                        .foregroundStyle(MusikKuStyle.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "play.fill")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(MusikKuStyle.accent.gradient, in: Circle())
+            }
+            .padding(14)
+            .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 21, style: .continuous)
+                    .stroke(.white.opacity(0.08), lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
     @MainActor
     private func loadHomeFeed() async {
         guard !didLoadHome else { return }
@@ -148,10 +244,15 @@ struct HomeView: View {
 
             Spacer()
 
-            Image(systemName: "person.crop.circle")
-                .font(.system(size: 25))
-                .foregroundStyle(MusikKuStyle.secondary)
-                .accessibilityLabel("Profil")
+            Button(action: onSearch) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(MusikKuStyle.secondary)
+                    .frame(width: 42, height: 42)
+                    .background(MusikKuStyle.surfaceVariant, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Cari musik")
         }
     }
 
@@ -183,7 +284,7 @@ struct HomeView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Button(action: onExplore) {
-                Label("Lihat status pencarian", systemImage: "arrow.right")
+                Label("Jelajahi mood dan genre", systemImage: "safari")
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -199,130 +300,7 @@ struct HomeView: View {
         }
     }
 
-    private var playerCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Label("PEMUTAR", systemImage: "waveform")
-                    .font(.caption.weight(.bold))
-                    .tracking(1)
-                    .foregroundStyle(MusikKuStyle.secondary)
 
-                Spacer()
-
-                Text(
-                    playback.isResolving
-                        ? "MENGAMBIL STREAM"
-                        : (playback.isBuffering ? "MEMUAT AUDIO" : (playback.isPlaying ? "SEDANG DIPUTAR" : "SIAP"))
-                )
-                    .font(.system(size: 9, weight: .bold))
-                    .tracking(0.6)
-                    .foregroundStyle(
-                        playback.isResolving || playback.isBuffering
-                            ? MusikKuStyle.accent
-                            : (playback.isPlaying ? .green : MusikKuStyle.secondary)
-                    )
-            }
-
-            HStack(spacing: 13) {
-                RoundedRectangle(cornerRadius: 15)
-                    .fill(MusikKuStyle.accent.opacity(0.22).gradient)
-                    .frame(width: 66, height: 66)
-                    .overlay {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 25, weight: .medium))
-                            .foregroundStyle(MusikKuStyle.accent)
-                    }
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(playback.currentTrack?.title ?? "Belum ada lagu")
-                        .font(.headline)
-                        .lineLimit(1)
-                    Text(playback.currentTrack?.artist ?? "Cari lagu dan tekan ikon putar")
-                        .font(.subheadline)
-                        .foregroundStyle(MusikKuStyle.secondary)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 0)
-            }
-
-            if playback.currentTrack != nil {
-                Slider(
-                    value: Binding(
-                        get: { playback.position },
-                        set: { playback.seek(to: $0) }
-                    ),
-                    in: 0...max(playback.duration, 1)
-                )
-
-                HStack {
-                    Text(Self.time(playback.position))
-                    Spacer()
-                    Text(Self.time(playback.duration))
-                }
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(MusikKuStyle.secondary)
-            }
-
-            if playback.isResolving || playback.isBuffering {
-                HStack(spacing: 8) {
-                    ProgressView().tint(MusikKuStyle.accent)
-                    Text(playback.isResolving ? "Mengambil stream audio…" : "Memuat audio…")
-                        .font(.caption)
-                        .foregroundStyle(MusikKuStyle.secondary)
-                }
-            }
-
-            HStack(spacing: 30) {
-                Button {
-                    playback.playPrevious()
-                } label: {
-                    Image(systemName: "backward.end.fill").font(.title3)
-                }
-                .disabled(playback.currentTrack == nil || playback.isResolving)
-
-                Button {
-                    playback.togglePlayback()
-                } label: {
-                    Image(
-                        systemName: playback.isResolving
-                            ? "xmark"
-                            : (playback.isPlaying ? "pause.fill" : "play.fill")
-                    )
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
-                        .frame(width: 52, height: 52)
-                        .background(MusikKuStyle.accent.gradient, in: Circle())
-                }
-                .disabled(playback.currentTrack == nil)
-                .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan audio" : (playback.isPlaying ? "Jeda" : "Putar"))
-
-                Button {
-                    playback.playNext()
-                } label: {
-                    Image(systemName: "forward.end.fill").font(.title3)
-                }
-                .disabled(playback.currentTrack == nil)
-            }
-            .frame(maxWidth: .infinity)
-            .buttonStyle(.plain)
-
-            if let error = playback.errorMessage {
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(17)
-        .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 20))
-    }
-
-    private static func time(_ seconds: Double) -> String {
-        guard seconds.isFinite, seconds >= 0 else { return "0:00" }
-        let whole = Int(seconds)
-        return "\(whole / 60):\(String(format: "%02d", whole % 60))"
-    }
 }
 
 private struct LibrarySummaryCard: View {

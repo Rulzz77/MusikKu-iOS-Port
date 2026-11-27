@@ -1,9 +1,12 @@
 # Porting status
 
-Current state: **native iOS UI, local library, catalogue Home/Search/browse, lyrics, direct-audio resolver, and an initial WKWebView BotGuard provider — not yet feature-equivalent to Android.**
+Current state: **native iOS UI with Android-aligned Home/Explore/Library navigation, global search, floating player dock, mood/genre browsing, local listening history and a play-count-based Mix. It is still not feature-equivalent to Android.**
 
 Implemented in the current development branch:
-- SwiftUI app with Beranda, Cari, and Koleksi tabs.
+- SwiftUI app with Android-aligned Beranda, Explore, and Koleksi tabs; catalogue search is opened globally from the main screens.
+- Combined floating material dock with mini-player transport controls and main-tab navigation.
+- Android-aligned dark palette and mood/genre Explore grid sourced from `FEmusic_moods_and_genres`.
+- Local listening history with play counts and a Mix queue ranked by frequently played tracks.
 - Persistent local playlists and favorites using versioned UserDefaults JSON keys.
 - Playlist detail can queue tracks and remove items when a track has a resolved stream.
 - AVPlayer queue foundation: play a queue, enqueue, remove a queue item, next, previous, shuffle, repeat-one, and automatic advance.
@@ -28,10 +31,10 @@ Implemented in the current development branch:
 Still not integrated or not fully verified:
 - WKWebView BotGuard initialization and token-provider code compile successfully in iOS CI. Live challenge execution, PoToken generation, attestation-gated stream extraction, and audible playback still require runtime verification; YouTube can change its challenge protocol.
 - Authenticated Google/YouTube account sessions, account/channel switching, account likes, and server-synced playlists.
-- Home/search/browse continuation paging, richer catalogue detail parity, and nested browse navigation.
+- Home/search/browse continuation paging and deeper nested browse parity.
 - Other Android catalogue/add-on sources such as JioSaavn and custom modules.
 - Lyrics translation, local TTML import/export, provider settings, and more Android lyric-source parity.
-- Download manager, offline audio, listening history, recommendations, smart playlists, and cross-device sync.
+- Download manager, offline audio, remote recommendations, advanced smart playlists, and cross-device sync. The current Mix is local and ranked by play count.
 - Native DSP, equalizer, crossfade, advanced codecs, USB audio, and specialized device-routing parity.
 - TestFlight or App Store release signing.
 

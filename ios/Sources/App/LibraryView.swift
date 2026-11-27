@@ -6,6 +6,7 @@ struct LibraryView: View {
     @State private var section: LibrarySection = .playlists
     @State private var showingCreatePlaylist = false
     @State private var playlistName = ""
+    let onSearch: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -13,13 +14,17 @@ struct LibraryView: View {
                 Picker("Koleksi", selection: $section) {
                     Text("Playlist").tag(LibrarySection.playlists)
                     Text("Disukai").tag(LibrarySection.favorites)
+                    Text("Riwayat").tag(LibrarySection.history)
                 }
                 .pickerStyle(.segmented)
 
-                if section == .playlists {
+                switch section {
+                case .playlists:
                     playlistContent
-                } else {
+                case .favorites:
                     favoriteContent
+                case .history:
+                    historyContent
                 }
             }
             .padding(.horizontal, 16)
@@ -27,6 +32,12 @@ struct LibraryView: View {
             .background(MusikKuStyle.background.ignoresSafeArea())
             .navigationTitle("Koleksi")
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: onSearch) {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .accessibilityLabel("Cari musik")
+                }
                 if section == .playlists {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
@@ -144,6 +155,44 @@ struct LibraryView: View {
         }
     }
 
+    @ViewBuilder
+    private var historyContent: some View {
+        if library.listeningHistory.isEmpty {
+            emptyState(
+                symbol: "clock.arrow.circlepath",
+                title: "Belum ada riwayat",
+                message: "Lagu yang kamu putar akan tersimpan di perangkat ini.",
+                actionTitle: nil,
+                action: nil
+            )
+        } else {
+            List {
+                ForEach(library.listeningHistory) { entry in
+                    Button {
+                        playback.play(entry.track)
+                    } label: {
+                        HStack(spacing: 12) {
+                            TrackLibraryRow(track: entry.track)
+                            Spacer(minLength: 4)
+                            VStack(alignment: .trailing, spacing: 3) {
+                                Text("\(entry.playCount)×")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(MusikKuStyle.accent)
+                                Text(entry.lastPlayedAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(MusikKuStyle.secondary)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(MusikKuStyle.surface)
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
     private func emptyState(
         symbol: String,
         title: String,
@@ -183,6 +232,7 @@ struct LibraryView: View {
 private enum LibrarySection: Hashable {
     case playlists
     case favorites
+    case history
 }
 
 private struct PlaylistDetailView: View {
@@ -247,13 +297,8 @@ private struct TrackLibraryRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(MusikKuStyle.accent.opacity(0.16))
+            ArtworkView(track: track, cornerRadius: 10)
                 .frame(width: 44, height: 44)
-                .overlay {
-                    Image(systemName: "music.note")
-                        .foregroundStyle(MusikKuStyle.accent)
-                }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(track.title)

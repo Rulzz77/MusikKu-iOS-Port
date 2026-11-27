@@ -2,45 +2,47 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var playback: PlaybackManager
-    @State private var selectedTab: AppTab = .home
+    @EnvironmentObject private var library: MusicLibraryStore
+    @State private var selectedTab: AppMainTab = .home
     @State private var isShowingNowPlaying = false
+    @State private var isShowingSearch = false
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeView(onExplore: { selectedTab = .search })
-                .tabItem { Label("Beranda", systemImage: "house.fill") }
-                .tag(AppTab.home)
-
-            SearchView()
-                .tabItem { Label("Cari", systemImage: "magnifyingglass") }
-                .tag(AppTab.search)
-
-            LibraryView()
-                .tabItem { Label("Koleksi", systemImage: "square.stack.fill") }
-                .tag(AppTab.library)
-        }
-        .tint(MusikKuStyle.accent)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if let track = playback.currentTrack {
-                MiniPlayerBar(track: track) {
-                    isShowingNowPlaying = true
-                }
-                .padding(.horizontal, 10)
-                .padding(.bottom, 4)
-                .background(MusikKuStyle.background.opacity(0.96))
+        Group {
+            switch selectedTab {
+            case .home:
+                HomeView(
+                    onExplore: { selectedTab = .explore },
+                    onSearch: { isShowingSearch = true }
+                )
+            case .explore:
+                ExploreView(onSearch: { isShowingSearch = true })
+            case .library:
+                LibraryView(onSearch: { isShowingSearch = true })
             }
+        }
+        .background(MusikKuStyle.background.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            FloatingMusicDock(
+                selectedTab: selectedTab,
+                onSelectTab: { selectedTab = $0 },
+                onOpenPlayer: { isShowingNowPlaying = true }
+            )
         }
         .sheet(isPresented: $isShowingNowPlaying) {
             NowPlayingView()
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $isShowingSearch) {
+            SearchView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        .onChange(of: playback.currentTrack?.id) { newID in
+            guard newID != nil, let track = playback.currentTrack else { return }
+            library.recordPlay(track)
+        }
         .preferredColorScheme(.dark)
     }
-}
-
-private enum AppTab: Hashable {
-    case home
-    case search
-    case library
 }

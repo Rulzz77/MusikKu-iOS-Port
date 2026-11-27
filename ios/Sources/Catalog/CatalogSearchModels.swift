@@ -94,6 +94,16 @@ struct CatalogHomeShelf: Identifiable, Hashable {
 }
 
 
+struct CatalogMoodGenre: Identifiable, Hashable {
+    let title: String
+    let browseID: String
+    let params: String?
+    var artworkURL: URL? = nil
+    let stripeColor: UInt32?
+
+    var id: String { "\(browseID)|\(params ?? "")" }
+}
+
 struct CatalogBrowsePage: Identifiable, Hashable {
     let id: String
     let title: String
@@ -101,4 +111,5 @@ struct CatalogBrowsePage: Identifiable, Hashable {
     let artworkURL: URL?
     let tracks: [CatalogItem]
     let shelves: [CatalogHomeShelf]
+    var moodGenres: [CatalogMoodGenre] = []
 }

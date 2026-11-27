@@ -116,7 +116,7 @@ actor MusicCatalogService {
         .uniqued(by: { "\($0.kind.rawValue):\($0.id)" })
     }
 
-    func browsePage(browseID: String) async throws -> CatalogBrowsePage {
+    func browsePage(browseID: String, params: String? = nil) async throws -> CatalogBrowsePage {
         let locale = Locale.current
         let language = locale.language.languageCode?.identifier ?? "en"
         let region = locale.region?.identifier ?? "US"
@@ -131,7 +131,7 @@ actor MusicCatalogService {
         ]
         guard let url = components.url else { throw MusicCatalogError.invalidURL }
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "context": [
                 "client": [
                     "clientName": "WEB_REMIX",
@@ -144,6 +144,9 @@ actor MusicCatalogService {
             ],
             "browseId": browseID
         ]
+        if let params, !params.isEmpty {
+            body["params"] = params
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -170,6 +173,12 @@ actor MusicCatalogService {
             throw MusicCatalogError.invalidResponse
         }
         return parseBrowsePage(root, browseID: browseID)
+    }
+
+
+    func moodAndGenres() async throws -> [CatalogMoodGenre] {
+        let page = try await browsePage(browseID: "FEmusic_moods_and_genres")
+        return page.moodGenres
     }
 
     private func parseBrowsePage(_ root: [String: Any], browseID: String) -> CatalogBrowsePage {
@@ -210,8 +219,63 @@ actor MusicCatalogService {
             subtitle: headerSubtitle,
             artworkURL: artworkURL,
             tracks: tracks,
-            shelves: shelves
+            shelves: shelves,
+            moodGenres: parseMoodGenres(root)
         )
+    }
+
+    private func parseMoodGenres(_ root: [String: Any]) -> [CatalogMoodGenre] {
+        guard
+            let tabs = Self.nested(root, "contents", "singleColumnBrowseResultsRenderer", "tabs") as? [Any],
+            let firstTab = tabs.first,
+            let sections = Self.nested(firstTab, "tabRenderer", "content", "sectionListRenderer", "contents") as? [Any]
+        else { return [] }
+
+        var seen = Set<String>()
+        var result: [CatalogMoodGenre] = []
+
+        for section in sections {
+            guard
+                let grid = Self.nested(section, "gridRenderer") as? [String: Any],
+                let items = grid["items"] as? [Any]
+            else { continue }
+
+            let sectionTitle = Self.runsText(Self.nested(grid, "header", "gridHeaderRenderer", "title"))
+            if sectionTitle.localizedCaseInsensitiveCompare("For you") == .orderedSame {
+                continue
+            }
+
+            for entry in items {
+                guard
+                    let button = Self.nested(entry, "musicNavigationButtonRenderer") as? [String: Any],
+                    let clickEndpoint = Self.nested(button, "clickCommand", "browseEndpoint") as? [String: Any]
+                        ?? Self.nested(button, "navigationEndpoint", "browseEndpoint") as? [String: Any],
+                    let browseID = clickEndpoint["browseId"] as? String,
+                    !browseID.isEmpty
+                else { continue }
+
+                let title = Self.runsText(button["buttonText"])
+                guard !title.isEmpty else { continue }
+
+                let params = clickEndpoint["params"] as? String
+                let identity = "\(browseID)|\(params ?? "")"
+                guard seen.insert(identity).inserted else { continue }
+
+                let stripeNumber = Self.nested(button, "solid", "leftStripeColor") as? NSNumber
+                let stripeString = Self.nested(button, "solid", "leftStripeColor") as? String
+                let stripeColor = stripeNumber?.uint32Value ?? stripeString.flatMap(UInt32.init)
+
+                result.append(
+                    CatalogMoodGenre(
+                        title: title,
+                        browseID: browseID,
+                        params: params,
+                        stripeColor: stripeColor
+                    )
+                )
+            }
+        }
+        return result
     }
 
     private func parseCarouselShelf(_ carousel: [String: Any]) -> CatalogHomeShelf? {
