@@ -10,6 +10,8 @@ struct SpotifyPlaylistImportView: View {
     @State private var errorMessage: String?
     @State private var result: SpotifyPlaylistImportResult?
     @State private var savedMessage: String?
+    @State private var editingEntry: SpotifyPlaylistImportEntry?
+    @State private var manualMatches: [String: MusicTrack] = [:]
 
     var body: some View {
         NavigationStack {
@@ -85,12 +87,37 @@ struct SpotifyPlaylistImportView: View {
                 }
             }
             .interactiveDismissDisabled(isImporting)
+            .sheet(item: $editingEntry) { entry in
+                SpotifyManualMatchSheet(source: entry.source) { track in
+                    manualMatches[entry.id] = track
+                    savedMessage = nil
+                    editingEntry = nil
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
             .onChange(of: playlistLink) { _ in
                 result = nil
                 errorMessage = nil
                 savedMessage = nil
+                manualMatches = [:]
             }
         }
+    }
+
+    private var tracksToSave: [MusicTrack] {
+        guard let result else { return [] }
+        var seen = Set<String>()
+        return result.entries.compactMap { entry in
+            guard let track = manualMatches[entry.id] ?? entry.matchedTrack else { return nil }
+            let id = track.id.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !id.isEmpty, seen.insert(id).inserted else { return nil }
+            return track
+        }
+    }
+
+    private func needsManualMatch(_ entry: SpotifyPlaylistImportEntry) -> Bool {
+        entry.matchedTrack == nil && manualMatches[entry.id] == nil
     }
 
     @ViewBuilder
@@ -126,9 +153,9 @@ struct SpotifyPlaylistImportView: View {
             .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 15))
 
             HStack(spacing: 8) {
-                resultMetric(title: "Cocok", value: result.matchedTracks.count, color: MusikKuStyle.accent)
-                resultMetric(title: "Tidak cocok", value: result.unmatchedEntries.count, color: MusikKuStyle.secondary)
-                resultMetric(title: "Gagal cek", value: result.failedEntries.count, color: .orange)
+                resultMetric(title: "Cocok", value: tracksToSave.count, color: MusikKuStyle.accent)
+                resultMetric(title: "Tidak cocok", value: result.unmatchedEntries.filter(needsManualMatch).count, color: MusikKuStyle.secondary)
+                resultMetric(title: "Gagal cek", value: result.failedEntries.filter(needsManualMatch).count, color: .orange)
             }
 
             Text("Pencocokan mensyaratkan judul, artis utama, dan durasi yang dekat. Hasil yang meragukan tidak akan otomatis dimasukkan.")
@@ -139,11 +166,11 @@ struct SpotifyPlaylistImportView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     Text("Belum ditemukan")
                         .font(.subheadline.weight(.semibold))
-                    ForEach(result.unmatchedEntries.prefix(8)) { entry in
-                        sourceTrackRow(entry.source, note: "Belum ada kecocokan yang cukup aman")
+                    ForEach(result.unmatchedEntries.filter(needsManualMatch).prefix(8)) { entry in
+                        sourceTrackRow(entry, note: "Belum ada kecocokan yang cukup aman")
                     }
-                    if result.unmatchedEntries.count > 8 {
-                        Text("Dan \(result.unmatchedEntries.count - 8) lagu lainnya.")
+                    if result.unmatchedEntries.filter(needsManualMatch).count > 8 {
+                        Text("Dan \(result.unmatchedEntries.filter(needsManualMatch).count - 8) lagu lainnya.")
                             .font(.caption)
                             .foregroundStyle(MusikKuStyle.secondary)
                     }
@@ -154,8 +181,8 @@ struct SpotifyPlaylistImportView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     Text("Pemeriksaan gagal")
                         .font(.subheadline.weight(.semibold))
-                    ForEach(result.failedEntries.prefix(5)) { entry in
-                        sourceTrackRow(entry.source, note: "Katalog tidak dapat diperiksa")
+                    ForEach(result.failedEntries.filter(needsManualMatch).prefix(5)) { entry in
+                        sourceTrackRow(entry, note: "Katalog tidak dapat diperiksa")
                     }
                     Text("Lagu ini belum dinyatakan tidak tersedia; pencariannya gagal karena gangguan jaringan atau layanan.")
                         .font(.caption)
@@ -169,25 +196,25 @@ struct SpotifyPlaylistImportView: View {
                     .foregroundStyle(.green)
             } else {
                 Button {
-                    let count = library.importPlaylist(result.title, tracks: result.matchedTracks)
+                    let count = library.importPlaylist(result.title, tracks: tracksToSave)
                     if count > 0 {
                         savedMessage = "\(count) lagu disimpan ke Koleksi sebagai playlist lokal."
                     } else {
                         savedMessage = "Belum ada lagu yang dapat disimpan."
                     }
                 } label: {
-                    Text("Simpan \(result.matchedTracks.count) lagu ke Koleksi")
+                    Text("Simpan \(tracksToSave.count) lagu ke Koleksi")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 13)
                         .background(
-                            result.matchedTracks.isEmpty ? MusikKuStyle.secondary : MusikKuStyle.accent,
+                            tracksToSave.isEmpty ? MusikKuStyle.secondary : MusikKuStyle.accent,
                             in: RoundedRectangle(cornerRadius: 13)
                         )
                 }
                 .buttonStyle(.plain)
-                .disabled(result.matchedTracks.isEmpty)
+                .disabled(tracksToSave.isEmpty)
             }
 
             Button("Selesai") { dismiss() }
@@ -208,15 +235,32 @@ struct SpotifyPlaylistImportView: View {
             }
     }
 
-    private func sourceTrackRow(_ source: SpotifySourceTrack, note: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(source.title)
+    private func sourceTrackRow(_ entry: SpotifyPlaylistImportEntry, note: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(entry.source.title)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                    Text("\(entry.source.artistText.isEmpty ? "Artis tidak diketahui" : entry.source.artistText) • \(note)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(MusikKuStyle.secondary)
+                        .lineLimit(2)
+                    if let selected = manualMatches[entry.id] {
+                        Text("Pilihan manual: \(selected.title) — \(selected.artist)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(MusikKuStyle.accent)
+                            .lineLimit(2)
+                    }
+                }
+                Spacer(minLength: 4)
+                Button(manualMatches[entry.id] == nil ? "Cari" : "Ganti") {
+                    editingEntry = entry
+                }
                 .font(.caption.weight(.semibold))
-                .lineLimit(1)
-            Text("\(source.artistText.isEmpty ? "Artis tidak diketahui" : source.artistText) • \(note)")
-                .font(.system(size: 10))
-                .foregroundStyle(MusikKuStyle.secondary)
-                .lineLimit(2)
+                .buttonStyle(.bordered)
+                .tint(MusikKuStyle.accent)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 5)
@@ -243,6 +287,7 @@ struct SpotifyPlaylistImportView: View {
         errorMessage = nil
         result = nil
         savedMessage = nil
+        manualMatches = [:]
         defer { isImporting = false }
 
         do {
@@ -250,6 +295,150 @@ struct SpotifyPlaylistImportView: View {
                 progressText = "Mencocokkan \(completed) dari \(total) lagu…"
             }
         } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+
+private struct SpotifyManualMatchSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var query: String
+    @State private var results: [CatalogItem] = []
+    @State private var isSearching = false
+    @State private var errorMessage: String?
+    let source: SpotifySourceTrack
+    let onSelect: (MusicTrack) -> Void
+
+    init(source: SpotifySourceTrack, onSelect: @escaping (MusicTrack) -> Void) {
+        self.source = source
+        self.onSelect = onSelect
+        _query = State(initialValue: "\(source.title) \(source.leadArtist)")
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    TextField("Judul lagu atau artis", text: $query)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.search)
+                        .onSubmit { Task { await search() } }
+
+                    Button {
+                        Task { await search() }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.headline)
+                            .frame(width: 42, height: 42)
+                            .background(MusikKuStyle.accent, in: RoundedRectangle(cornerRadius: 10))
+                            .foregroundStyle(.white)
+                    }
+                    .disabled(isSearching || query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding(12)
+                .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 13))
+
+                if isSearching {
+                    ProgressView("Mencari lagu…")
+                        .tint(MusikKuStyle.accent)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let errorMessage {
+                    VStack(spacing: 8) {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                        Button("Coba lagi") { Task { await search() } }
+                            .buttonStyle(.bordered)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if results.isEmpty {
+                    ContentUnavailableView(
+                        "Pilih pengganti lagu",
+                        systemImage: "music.note.magnifyingglass",
+                        description: Text("Cari lagu katalog yang paling sesuai dengan judul Spotify.")
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            ForEach(results) { item in
+                                Button {
+                                    onSelect(item.asMusicTrack())
+                                    dismiss()
+                                } label: {
+                                    HStack(spacing: 11) {
+                                        AsyncImage(url: item.artworkURL) { phase in
+                                            if let image = phase.image {
+                                                image.resizable().scaledToFill()
+                                            } else {
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .fill(MusikKuStyle.accent.opacity(0.15))
+                                                    .overlay {
+                                                        Image(systemName: "music.note")
+                                                            .foregroundStyle(MusikKuStyle.accent)
+                                                    }
+                                            }
+                                        }
+                                        .frame(width: 48, height: 48)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(item.title)
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(.primary)
+                                                .lineLimit(1)
+                                            Text(item.subtitle.isEmpty ? item.artist : item.subtitle)
+                                                .font(.caption)
+                                                .foregroundStyle(MusikKuStyle.secondary)
+                                                .lineLimit(2)
+                                        }
+                                        Spacer(minLength: 0)
+                                        Image(systemName: "checkmark.circle")
+                                            .foregroundStyle(MusikKuStyle.accent)
+                                    }
+                                    .padding(9)
+                                    .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 12))
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .background(MusikKuStyle.background.ignoresSafeArea())
+            .navigationTitle("Pilih lagu pengganti")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Batal") { dismiss() }
+                }
+            }
+            .task {
+                if results.isEmpty { await search() }
+            }
+        }
+    }
+
+    @MainActor
+    private func search() async {
+        let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanQuery.isEmpty else { return }
+        isSearching = true
+        errorMessage = nil
+        defer { isSearching = false }
+
+        do {
+            let page = try await MusicCatalogService.shared.searchPage(query: cleanQuery, filter: .songs)
+            results = page.items.filter { $0.kind == .song && $0.canSaveAsTrack }
+            if results.isEmpty {
+                errorMessage = "Tidak ada lagu yang cocok dengan pencarian ini."
+            }
+        } catch {
+            results = []
             errorMessage = error.localizedDescription
         }
     }

@@ -11,7 +11,7 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 | Search | WEB_REMIX filters, query suggestions, local recent-search list and result continuation paging | Implemented in source; live suggestions/continuations need runtime validation |
 | Album / artist / playlist pages | Header/artwork, tracks, related shelves, play-all, save/favorite and continuation paging | Implemented in source; deeper nested browse parity remains incomplete |
 | Local playlists / favorites | Create/delete local playlists, add/remove tracks and favorites | Implemented with local UserDefaults persistence; no account required |
-| Spotify playlist import | Public Spotify embed metadata, strict title/primary-artist/duration matching, save matches as a local playlist | Implemented in source without login; incomplete playlists at the 100-row embed boundary are rejected; manual replacement is not yet available |
+| Spotify playlist import | Public Spotify embed metadata, strict title/primary-artist/duration matching, save matches as a local playlist | Implemented in source without login; incomplete playlists at the 100-row embed boundary are rejected; manual replacement is available for unmatched or failed rows |
 | Listening history / statistics | Play counts, last-played time, AVPlayer elapsed listening time and History totals | Implemented in source; stored locally on this device |
 | Mix / Smart Playlists | Minimum plays, optional artist, duration bounds, last-played window, ALL/ANY matching, most-played/recent/most-listened sorting | Substantial local subset implemented; genre/release-year metadata filters remain unavailable |
 | Player / queue | AVPlayer queue, enqueue/remove, next/previous, shuffle, repeat Off/All/One, auto advance and manual reordering | Implemented in source; playback reliability requires physical-device verification |
@@ -24,7 +24,7 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 | Guest-first usage | Local playlists/favorites/history/Smart Mix do not require login | Implemented for local data; no cloud sync |
 | Google / YouTube account, remote likes | Approved OAuth, account/channel switching and account-backed library | Not implemented |
 | Additional Android sources / add-ons | Separate provider adapters and source-specific terms/permissions | Not implemented |
-| External playlist import | Public Spotify playlist URL import only; other providers and account-backed imports remain out of scope | Partial; public playlists only, no manual replacement, and no complete pagination beyond Spotify's public embed payload |
+| External playlist import | Public Spotify playlist URL import only; other providers and account-backed imports remain out of scope | Partial; public playlists only, manual replacement is available, but there is no complete pagination beyond Spotify's public embed payload |
 | Offline downloads | Online-first catalog playback | Not in current iOS scope |
 | Full Android DSP / equalizer / crossfade | Native audio processing and AVPlayer/AVAudioEngine integration | Not implemented |
 | Listen Together / party sync | New native iOS client and protocol testing | Not implemented |

@@ -93,7 +93,8 @@ actor SpotifyPlaylistImportService {
 
         let playlist = try await fetchPublicPlaylist(playlistID: playlistID)
         let total = playlist.tracks.count
-        var entries = Array<SpotifyPlaylistImportEntry?>(repeating: nil, count: total)
+        let storageCount = (playlist.tracks.map(\.position).max() ?? -1) + 1
+        var entries = Array<SpotifyPlaylistImportEntry?>(repeating: nil, count: storageCount)
         var completed = 0
 
         // Keep concurrency low to avoid flooding the catalogue endpoint.
