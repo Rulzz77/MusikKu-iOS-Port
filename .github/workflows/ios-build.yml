@@ -25,7 +25,7 @@ on:
 # Keep only the newest validation for a pull request/branch.
 concurrency:
   # A push and pull_request synchronize event for the same branch share one slot.
-  group: ios-simulator-ui-v3-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: ios-simulator-ui-v4-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -66,8 +66,25 @@ jobs:
           python3 -m json.tool ios/Resources/Assets.xcassets/AppIcon.appiconset/Contents.json >/dev/null
           test -s ios/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png
           sips -g pixelWidth -g pixelHeight ios/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png
-          grep -q 'ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon' ios/project.yml
-          grep -q 'CFBundleIconName' ios/Support/Info.plist
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          project = Path("ios/project.yml").read_text()
+          info = Path("ios/Support/Info.plist").read_text()
+          asset_path = Path("ios/Resources/Assets.xcassets/AppIcon.appiconset")
+          asset = json.loads((asset_path / "Contents.json").read_text())
+
+          assert "ASSETCATALOG_COMPILER_APPICON_NAME" in project, "XcodeGen spec is missing AppIcon build setting"
+          assert "CFBundleIconName" in info, "Info.plist is missing CFBundleIconName"
+          assert any(
+              image.get("filename") == "AppIcon.png"
+              and image.get("idiom") == "universal"
+              and image.get("size") == "1024x1024"
+              for image in asset.get("images", [])
+          ), "AppIcon Contents.json is missing the universal 1024x1024 PNG entry"
+          print("AppIcon and privacy-manifest release metadata validation passed.")
+          PY
 
       - name: Build for iOS Simulator
         run: >-
