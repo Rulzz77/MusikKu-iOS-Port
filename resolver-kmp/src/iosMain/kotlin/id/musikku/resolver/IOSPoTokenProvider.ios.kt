@@ -19,6 +19,7 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -30,14 +31,13 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
-import platform.CoreGraphics.CGRectZero
+import platform.CoreGraphics.CGRectMake
 import platform.Foundation.NSURL
 import platform.WebKit.WKWebView
 import platform.WebKit.WKWebViewConfiguration
 import platform.WebKit.WKWebsiteDataStore
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCancellableCoroutine
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -152,6 +152,7 @@ private class IOSPoTokenProvider : TokenProvider {
     }
 }
 
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 private class IOSBotGuardSession private constructor(
     private val webView: WKWebView,
     private val userAgent: String,
@@ -374,7 +375,7 @@ private class IOSBotGuardSession private constructor(
             val webView = withContext(Dispatchers.Main) {
                 val configuration = WKWebViewConfiguration()
                 configuration.websiteDataStore = WKWebsiteDataStore.nonPersistentDataStore()
-                WKWebView(frame = CGRectZero, configuration = configuration).apply {
+                WKWebView(frame = CGRectMake(0.0, 0.0, 0.0, 0.0), configuration = configuration).apply {
                     loadHTMLString(IOS_PO_TOKEN_HTML, NSURL(string = "https://www.youtube.com"))
                 }
             }
