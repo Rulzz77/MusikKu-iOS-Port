@@ -157,9 +157,9 @@ jobs:
           IPA_STAGING="$RUNNER_TEMP/MusikKu-IPA"
           mkdir -p "$IPA_STAGING/Payload"
           ditto "$APP_PATH" "$IPA_STAGING/Payload/MusikKu.app"
-          (cd "$IPA_STAGING" && /usr/bin/zip -qry "$RUNNER_WORKSPACE/MusikKu-iOS-unsigned.ipa" Payload)
+          (cd "$IPA_STAGING" && /usr/bin/zip -qry "$GITHUB_WORKSPACE/MusikKu-iOS-unsigned.ipa" Payload)
 
-          /usr/bin/unzip -l "$RUNNER_WORKSPACE/MusikKu-iOS-unsigned.ipa" | grep -q 'Payload/MusikKu.app/Info.plist'
+          /usr/bin/unzip -l "$GITHUB_WORKSPACE/MusikKu-iOS-unsigned.ipa" | grep -q 'Payload/MusikKu.app/Info.plist'
           echo "Created unsigned iPhone IPA for $BUNDLE_ID."
 
       - name: Upload unsigned IPA for Sideloadly
