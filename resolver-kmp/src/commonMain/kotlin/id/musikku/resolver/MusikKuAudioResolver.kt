@@ -104,7 +104,9 @@ class MusikKuAudioResolver {
         }
 
         val hints = ContentHints(wantVideo = false).withStreamCapabilities(
-            allowHls = false,
+            // HLS is only returned by InnerTubeX as a fallback after usable direct formats
+            // are exhausted (or for clients that require it); AVPlayer supports HLS natively.
+            allowHls = true,
             allowSabr = false,
             allowBoundedRange = true,
             // Last-resort iOS Producer returns a muxed MP4 with AAC audio. AVPlayer
@@ -129,8 +131,10 @@ class MusikKuAudioResolver {
         val isAudioOnlyMp4 = mimeType.equals("audio/mp4", ignoreCase = true)
         val isMuxedMp4WithAac = mimeType.equals("video/mp4", ignoreCase = true) &&
             stream.codecs?.contains("mp4a", ignoreCase = true) == true
-        require(isAudioOnlyMp4 || isMuxedMp4WithAac) {
-            "The selected stream is not an AVPlayer-compatible AAC MP4 stream."
+        val isHlsManifest = mimeType.equals("application/x-mpegURL", ignoreCase = true) ||
+            mimeType.equals("application/vnd.apple.mpegurl", ignoreCase = true)
+        require(isAudioOnlyMp4 || isMuxedMp4WithAac || isHlsManifest) {
+            "The selected stream is not an AVPlayer-compatible AAC MP4 or HLS stream."
         }
 
         return ResolvedAudioStream(
