@@ -35,6 +35,13 @@ final class PlaybackManager: ObservableObject {
     init() {
         configureRemoteCommands()
         configureAudioSessionNotifications()
+
+        // Warm the remote player config and cipher cache before the first tap.
+        // This is best-effort: playback can still attempt resolution if warm-up fails.
+        Task { [weak self] in
+            guard let self else { return }
+            await self.streamResolver.prewarm(language: "id", region: "ID")
+        }
     }
 
     /// Starts one track. The stream URL must come from a provider authorized for this app.
