@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SearchView: View {
     @EnvironmentObject private var library: MusicLibraryStore
+    @EnvironmentObject private var playback: PlaybackManager
     @State private var query = ""
     @State private var selectedFilter: CatalogSearchFilter = .all
     @State private var results: [CatalogItem] = []
@@ -165,6 +166,10 @@ struct SearchView: View {
                             guard item.canSaveAsTrack else { return }
                             library.toggleFavorite(item.asMusicTrack())
                         },
+                        onPlay: {
+                            guard item.canSaveAsTrack else { return }
+                            playback.play(item.asMusicTrack())
+                        },
                         onOpen: {
                             guard item.browseID != nil else { return }
                             selectedBrowseItem = item
@@ -174,7 +179,7 @@ struct SearchView: View {
                     .padding(.vertical, 7)
                 }
 
-                Text("Hasil pencarian menampilkan metadata katalog. URL audio belum dihubungkan ke pemutar iOS.")
+                Text("Tekan tombol putar pada lagu untuk mencoba streaming melalui pemutar MusikKu. Beberapa lagu mungkin tidak tersedia dari penyedia.")
                     .font(.caption)
                     .foregroundStyle(MusikKuStyle.secondary)
                     .multilineTextAlignment(.center)
@@ -260,6 +265,7 @@ private struct CatalogResultRow: View {
     let item: CatalogItem
     let isSaved: Bool
     let onSave: () -> Void
+    let onPlay: () -> Void
     let onOpen: () -> Void
 
     var body: some View {
@@ -317,6 +323,16 @@ private struct CatalogResultRow: View {
             Spacer(minLength: 0)
 
             if item.canSaveAsTrack {
+                Button(action: onPlay) {
+                    Image(systemName: "play.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(MusikKuStyle.accent)
+                        .frame(width: 38, height: 38)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Putar \(item.title)")
+
                 Button(action: onSave) {
                     Image(systemName: isSaved ? "heart.fill" : "heart")
                         .font(.title3)
@@ -384,6 +400,7 @@ private struct CatalogResultRow: View {
 
 struct CatalogBrowseDetailSheet: View {
     @EnvironmentObject private var library: MusicLibraryStore
+    @EnvironmentObject private var playback: PlaybackManager
     @Environment(\.dismiss) private var dismiss
     let item: CatalogItem
 
@@ -479,8 +496,23 @@ struct CatalogBrowseDetailSheet: View {
 
                 if !page.tracks.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Lagu")
-                            .font(.headline)
+                        HStack {
+                            Text("Lagu")
+                                .font(.headline)
+                            Spacer()
+                            Button {
+                                let tracks = page.tracks
+                                    .filter(\.canSaveAsTrack)
+                                    .map { $0.asMusicTrack() }
+                                guard !tracks.isEmpty else { return }
+                                playback.playQueue(tracks)
+                            } label: {
+                                Label("Putar semua", systemImage: "play.fill")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .disabled(!page.tracks.contains(where: \.canSaveAsTrack))
+                            .foregroundStyle(MusikKuStyle.accent)
+                        }
 
                         ForEach(page.tracks) { track in
                             HStack(spacing: 11) {
@@ -505,6 +537,19 @@ struct CatalogBrowseDetailSheet: View {
                                 }
 
                                 Spacer(minLength: 0)
+
+                                Button {
+                                    guard track.canSaveAsTrack else { return }
+                                    playback.play(track.asMusicTrack())
+                                } label: {
+                                    Image(systemName: "play.circle.fill")
+                                        .font(.title2)
+                                        .foregroundStyle(MusikKuStyle.accent)
+                                        .frame(width: 34, height: 38)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(!track.canSaveAsTrack)
+                                .accessibilityLabel("Putar \(track.title)")
 
                                 Button {
                                     selectedTrackToAddToPlaylist = track.asMusicTrack()
@@ -544,7 +589,7 @@ struct CatalogBrowseDetailSheet: View {
                         .padding(24)
                 }
 
-                Text("Halaman katalog ini berisi metadata. Pemutaran dan sinkronisasi akun belum terhubung pada tahap iOS ini.")
+                Text("Pilih tombol putar untuk mencoba memutar lagu. Pemutaran bergantung pada ketersediaan stream dari penyedia musik.")
                     .font(.caption)
                     .foregroundStyle(MusikKuStyle.secondary)
                     .fixedSize(horizontal: false, vertical: true)
