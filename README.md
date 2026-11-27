@@ -22,7 +22,7 @@ The project is an actively developed iOS port, not yet a complete feature-equiva
 - Add catalogue tracks from browse details to local playlists or favorites.
 - Initial iOS WEB_BOTGUARD token-provider integration using an isolated, non-persistent WKWebView and Ktor Darwin. It caches visitor-bound streaming tokens in memory and generates video-ID-bound player tokens without reading or attaching Google account cookies.
 
-Home, Search, and browse details retrieve catalogue metadata and artwork. Selecting Play hands a YouTube song/video ID to the KMP resolver, which attempts to extract a direct HTTPS audio URL and passes the required request headers to AVPlayer. Remote player config is cached on iOS and each extraction uses a client playback nonce. The resolver now supplies a platform token provider, but the WKWebView BotGuard flow still needs CI compilation and live iOS runtime verification. No account cookies are supplied. A working build or token-provider implementation is not proof of audible playback; real-device playback still needs to be tested.
+Home, Search, and browse details retrieve catalogue metadata and artwork. Selecting Play hands a YouTube song/video ID to the KMP resolver, which attempts to extract a direct HTTPS audio URL and passes the required request headers to AVPlayer. Remote player config is cached on iOS and each extraction uses a client playback nonce. The resolver now supplies an initial iOS WEB_BOTGUARD provider. GitHub Actions passed the Kotlin/Native XCFramework build, XcodeGen project generation, and iOS Simulator compile at commit `624ffe1`. The live WKWebView challenge, token minting, stream extraction, and audible playback have not yet been verified on an iPhone or simulator runtime. The provider does not read or attach Google account cookies. A successful compile is not proof of audible playback.
 
 ## Requirements
 
@@ -57,7 +57,7 @@ open ios/MusikKu.xcodeproj
 ## Important limitations
 
 - Search is connected to the Android project's anonymous WEB_REMIX catalogue request shape, but service availability and response changes are controlled by the third-party endpoint.
-- Search/Home Play actions are wired to InnerTubeX and AVPlayer, but real audio playback has not yet been confirmed on a physical iPhone or simulator. The new BotGuard provider is not yet confirmed against live challenges.
+- Search/Home Play actions are wired to InnerTubeX and AVPlayer. The BotGuard provider compiles in CI, but live challenge compatibility, token generation, stream extraction, and audible playback are not yet confirmed on an iPhone or simulator runtime.
 - Background audio is declared and the AVAudioSession is configured, but it still needs physical-iPhone verification.
 - Local playlists and favorites are stored on the current device only; no login or cloud sync is implemented.
 - The project does not currently provide APK-style self-updates. iOS distribution uses TestFlight / App Store channels.
