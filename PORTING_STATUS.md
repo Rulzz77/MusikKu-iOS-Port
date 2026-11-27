@@ -40,12 +40,14 @@ Current state: **native iOS UI with Android-aligned Beranda / Explore / Koleksi 
 
 ## Validation
 
-- [GitHub Actions run #142](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45999374004) passed at commit `242a8e8`: all 14 workflow steps completed successfully, including InnerTubeX XCFramework build, XcodeGen generation, Simulator compilation, **5 unit tests with 0 failures**, Simulator install/launch smoke test, Appetize Simulator ZIP packaging/upload and unsigned arm64 iPhone IPA packaging.
-- [Appetize Simulator artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45999374004/artifacts/15198806531): 4,429,251 bytes; SHA-256 `bcd67f767b62131d408c28fa702d80803f96c0fbc81667a0dbcbd77f8bb47ac9`; expires 4 December 2026. This contains the iOS Simulator build intended for Appetize browser testing from Windows. Follow [Windows/Appetize testing instructions](docs/APPETIZE_WINDOWS_TESTING.md).
-- [Unsigned IPA artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45999374004/artifacts/15199215916): 3,574,894 bytes; SHA-256 `0dd644390e2b1b5d95684e96f3c65c0d3554620feef54a0c47109f586f11d50f`; expires 4 December 2026. It is unsigned for personal Sideloadly testing, not a TestFlight or App Store release.
-- The CI suite covers public Spotify playlist URL parsing (3 cases), local playlist deduplication/persistence (1 case), and Smart Playlist play-count/duration filtering (1 case).
-- Simulator compilation, launch and IPA packaging verify build viability only. They do **not** establish live Webpage Attestation compatibility, PoToken generation, YouTube stream extraction, audible playback or physical-device audio behaviour.
-- Xcode still emits non-fatal validation warnings for supported orientations and launch configuration during the physical-device IPA packaging step; investigate before release.
-- Physical-iPhone validation remains outstanding: audible stream playback, screen-locked background playback, lock-screen/Control Center, interruptions, Bluetooth/headset routing and Wi-Fi/cellular handoff.
+- [GitHub Actions run #153](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/46007785990) completed successfully at commit `402330e`: Simulator build and launch passed, **9 unit tests passed with 0 failures**, and all three artifacts (UI preview, Appetize Simulator ZIP, unsigned iPhone IPA) were uploaded.
+- The 9 tests cover local playlist deduplication/persistence, Smart Playlist play-count/duration filtering, Indonesian error mapping (4 cases), and Spotify playlist URL parsing/host validation (3 cases).
+- [Appetize Simulator artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/46007785990/artifacts/15204360309): 4,444,120 bytes; expires 4 December 2026. This is the Simulator ZIP for Windows/Appetize testing.
+- [Simulator UI preview](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/46007785990/artifacts/15203910710): 1,068,256 bytes; expires 4 December 2026. The preview showed the Home content bounded inside a centered panel, so a root-layout correction has since been committed and awaits new screenshot validation.
+- [Unsigned IPA artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/46007785990/artifacts/15203705838): 3,587,461 bytes; expires 4 December 2026. It is unsigned for personal Sideloadly testing, not a TestFlight or App Store release.
+- Follow [Windows/Appetize testing instructions](docs/APPETIZE_WINDOWS_TESTING.md). The iOS Appetize simulator is useful for UI/flow checks but does not provide audible iOS audio output.
+- The latest playback changes add an embedded player-config fallback, a last-resort AAC progressive MP4 path, and visible status/diagnostics. Those changes are **not yet covered by a completed full CI run**; the latest queued run must pass before considering them validated.
+- AppIcon asset-catalog integration and a required-reason privacy manifest have been added; CI now lint-checks these assets. Their inclusion awaits validation by the next successful run.
+- Simulator compilation, launch and IPA packaging do **not** establish live Webpage Attestation compatibility, PoToken generation, YouTube stream extraction, audible playback or physical-device audio behaviour.
 
-Pull request: #1 — phase-1-ui-library-queue to main. The PR remains open and has not been merged.
+Pull request: #1 — phase-1-ui-library-queue to main. The PR remains open and has not been merged. See [Release Readiness](docs/RELEASE_READINESS.md) for the remaining engineering, signing, privacy, licensing and content-rights gates.

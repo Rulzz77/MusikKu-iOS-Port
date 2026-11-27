@@ -5,12 +5,12 @@ This document records what must be completed before merging PR #1 and distributi
 ## Engineering readiness
 
 - [x] Native iOS target and simulator build
-- [x] App Store-sized AppIcon source and asset-catalog integration
-- [x] Privacy manifest declares the app's own UserDefaults use (CA92.1)
+- [x] App Store-sized AppIcon source, asset-catalog integration and CFBundleIconName
+- [x] Privacy manifest declares app-local UserDefaults access (CA92.1); App Store Connect privacy answers and privacy policy are still outstanding
 - [x] Simulator UI preview artifact
 - [x] Appetize simulator ZIP artifact for browser-based UI checks
 - [x] Unsigned arm64 IPA artifact for sideload testing
-- [ ] Latest playback fallback commit passes full CI
+- [ ] Latest playback fallback, root-layout, AppIcon and privacy changes pass a complete CI run
 - [ ] Physical iPhone: resolve and play multiple ordinary tracks
 - [ ] Physical iPhone: seek, pause/resume, next/previous, repeat and shuffle
 - [ ] Physical iPhone: background playback, lock screen, Control Center and interruptions

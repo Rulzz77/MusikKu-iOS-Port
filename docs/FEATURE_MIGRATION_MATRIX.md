@@ -4,7 +4,7 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 
 | Android MusikKu capability | iOS implementation | Status |
 |---|---|---|
-| Main navigation | SwiftUI Beranda / Explore / Koleksi; global Search sheet; floating material dock with mini-player | Build #142 compiled, installed and launched in Simulator; 5 automated tests passed. A separate Appetize Simulator ZIP was uploaded successfully for Windows browser testing |
+| Main navigation | SwiftUI Beranda / Explore / Koleksi; global Search sheet; floating material dock with mini-player | Build #153 compiled, installed and launched in Simulator; 9 automated tests passed. The newer root-layout correction still awaits a fresh Simulator screenshot. |
 | Android visual language | Dark BitChord palette, lavender accent, rounded cards, artwork shelves and translucent dock | Adapted to SwiftUI; pixel-identical parity is not intended |
 | Home feed | WEB_REMIX FEmusic_home, artwork shelves, recent plays, play-count Mix and continuation paging | Implemented in source; live response/pagination needs device testing |
 | Explore / mood / genre | FEmusic_moods_and_genres, category grid, browse detail and category continuation paging | Implemented in source; parser depends on live third-party response format |
@@ -20,7 +20,7 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 | Lock screen / Control Center | MPNowPlayingInfoCenter, MPRemoteCommandCenter, artwork, transport and seek | Implemented in source; verify on a physical iPhone |
 | Background audio / interruptions | AVAudioSession playback, background audio mode, interruption/headphone handling | Configured in source; physical-device/Bluetooth tests pending |
 | Lyrics | Automatic or manual provider: lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato, LRCLIB; TTML line/word/syllable timing; translation and persistent per-track TTML import/export | Implemented in source; third-party services and file round-trip need runtime testing |
-| Resolver / YouTube stream | KMP InnerTubeX v0.13.2 for iOS, Ktor Darwin 3.6.0, HTTPS audio handoff, Webpage Attestation via isolated WKWebView, embedded-config fallback, 10-minute per-video profile exclusion and asynchronous cipher refresh after AVPlayer refusal | Framework compiles and packages in CI; live challenge, PoToken generation, stream extraction and audible playback remain unverified on a physical iPhone |
+| Resolver / YouTube stream | KMP InnerTubeX v0.13.2 for iOS, Ktor Darwin 3.6.0, HTTPS audio handoff, Webpage Attestation via isolated WKWebView, embedded-config fallback, 10-minute per-video profile exclusion and asynchronous cipher refresh after AVPlayer refusal | Framework compiles and packages in CI; latest embedded-config/AAC fallback changes await a fresh full CI run. Live challenge, PoToken generation, stream extraction and audible playback remain unverified on a physical iPhone |
 | Guest-first usage | Local playlists/favorites/history/Smart Mix do not require login | Implemented for local data; no cloud sync |
 | Google / YouTube account, remote likes | Approved OAuth, account/channel switching and account-backed library | Not implemented |
 | Additional Android sources / add-ons | Separate provider adapters and source-specific terms/permissions | Not implemented |
@@ -32,11 +32,15 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 | Android APK updater | TestFlight / App Store distribution | Not applicable on iOS |
 | Release signing | Apple signing, provisioning and App Store Connect | Not configured; current artifact is unsigned for Sideloadly testing |
 
+## Release assets
+
+The iOS target now includes an AppIcon asset catalog (1024px universal source) and `PrivacyInfo.xcprivacy` declaring app-local UserDefaults access under Apple's required-reason code CA92.1. The CI workflow validates the Info.plist, privacy manifest and icon asset before compiling. The privacy manifest does not replace the separate App Store Connect privacy questionnaire or a public privacy policy.
+
 ## Resolver architecture
 
 The iOS target consumes a Kotlin Multiplatform framework built from resolver-kmp and pins InnerTubeX v0.13.2 for the iOS target only; the Android repository is not modified by this port. Ktor Darwin 3.6.0 requests direct audio streams with HLS/SABR disabled before passing the HTTPS URL and required headers to AVPlayer. InnerTubeX provides its current embedded player-config/cipher fallback and client-selection pipeline. When AVPlayer rejects a stream, the resolver records the exact profile ID, excludes it for that video for up to 10 minutes using monotonic time, and schedules a cipher-config refresh asynchronously. Both the main resolver HTTP client and the token HTTP client disable shared iOS cookie storage. Webpage Attestation parses the watch-page challenge, validates the HTTPS interpreter host/path, and executes the challenge in a non-persistent WKWebView; only the static consent preference is sent and token data remains memory-only.
 
-CI run #142 built the XCFramework, generated the Xcode project, compiled and launched the iOS Simulator app, passed 5 unit tests with 0 failures, uploaded a separate Simulator ZIP for Appetize browser testing from Windows, and created/uploaded an unsigned arm64 IPA. This is compile/package validation, not evidence of live YouTube playback or physical iPhone audio functionality.
+CI run #153 built the XCFramework, generated the Xcode project, compiled and launched the iOS Simulator app, passed 9 unit tests with 0 failures, uploaded a Simulator UI preview and a separate Simulator ZIP for Appetize browser testing from Windows, and created/uploaded an unsigned arm64 IPA. Newer commits add playback fallbacks, a full-screen root correction, AppIcon and privacy metadata; they require fresh CI confirmation. This is compile/package validation, not evidence of live YouTube playback or physical iPhone audio functionality.
 
 The provider is a best-effort technical integration. A successful framework build does not guarantee that YouTube's live challenge protocol or any particular stream remains compatible.
 

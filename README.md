@@ -27,16 +27,17 @@ Local playlists, favorites, search history, listening stats and Smart Playlist r
 
 ## Build and validation
 
-GitHub Actions builds the InnerTubeX iOS XCFramework, generates the Xcode project, compiles and launches the iOS Simulator app, runs unit tests, packages a separate Simulator ZIP for Appetize, and exports an unsigned arm64 IPA for physical-iPhone testing.
+GitHub Actions builds the InnerTubeX iOS XCFramework, generates the Xcode project, validates the AppIcon and privacy manifest, compiles and launches the iOS Simulator app, runs unit tests, packages a separate Simulator ZIP for Appetize, captures a UI preview, and exports an unsigned arm64 IPA for physical-iPhone testing.
 
-- [Run #142](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45999374004) succeeded at commit `242a8e8`: all 14 workflow steps passed, including Simulator build and launch, **5 unit tests (0 failures)**, Appetize Simulator packaging/upload, and unsigned arm64 iPhone IPA packaging.
-- [Download the Appetize Simulator artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45999374004/artifacts/15198806531) (4,429,251 bytes; SHA-256 `bcd67f767b62131d408c28fa702d80803f96c0fbc81667a0dbcbd77f8bb47ac9`; expires 4 December 2026). Download this artifact for Windows testing.
-- [Download the unsigned IPA artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45999374004/artifacts/15199215916) (3,574,894 bytes; SHA-256 `0dd644390e2b1b5d95684e96f3c65c0d3554620feef54a0c47109f586f11d50f`; expires 4 December 2026).
+- [Run #153](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/46007785990) succeeded at commit `402330e`: Simulator build/launch passed and **9 unit tests passed with 0 failures**; the UI preview, Appetize Simulator ZIP and unsigned arm64 IPA were uploaded.
+- [Download the Appetize Simulator artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/46007785990/artifacts/15204360309) (4,444,120 bytes; expires 4 December 2026). This is the ZIP to upload to Appetize from Windows.
+- [Download the Simulator UI preview](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/46007785990/artifacts/15203910710) (1,068,256 bytes; expires 4 December 2026).
+- [Download the unsigned IPA artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/46007785990/artifacts/15203705838) (3,587,461 bytes; expires 4 December 2026).
 - See [Test from Windows with Appetize](docs/APPETIZE_WINDOWS_TESTING.md) for upload instructions.
 
-The unsigned IPA is for personal device testing with Sideloadly, not an App Store/TestFlight signed release. The Appetize ZIP is an iOS Simulator build; Appetize does not accept the IPA.
+The unsigned IPA is for personal device testing with Sideloadly, not an App Store/TestFlight signed release. The Appetize ZIP is an iOS Simulator build; Appetize does not accept the IPA, and Appetize's iOS simulator does not provide audible audio output.
 
-A build or Simulator launch does not verify live Webpage Attestation challenge compatibility, PoToken generation, stream extraction or audible playback. Actual YouTube playback, background audio, lock-screen controls and audio routing must be verified on a physical iPhone before release.
+The latest playback fallback, full-screen root correction, AppIcon and privacy-manifest commits are newer than run #153 and still require a fresh successful CI build. Even then, live Webpage Attestation, PoToken generation, YouTube stream extraction and audible playback must be verified on a physical iPhone before release. See [Release Readiness](docs/RELEASE_READINESS.md) for signing, privacy, licensing and content-rights requirements.
 
 ## Requirements for local build
 
