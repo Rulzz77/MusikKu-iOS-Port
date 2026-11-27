@@ -3,7 +3,23 @@ name: iOS Simulator Build
 on:
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/ios-build.yml"
+      - "ios/**"
+      - "resolver-kmp/**"
+      - "gradle/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - "settings.gradle.kts"
   pull_request:
+    paths:
+      - ".github/workflows/ios-build.yml"
+      - "ios/**"
+      - "resolver-kmp/**"
+      - "gradle/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - "settings.gradle.kts"
   workflow_dispatch:
 
 # Keep only the newest validation for a pull request/branch.
@@ -52,3 +68,57 @@ jobs:
           ONLY_ACTIVE_ARCH=YES
           CODE_SIGNING_ALLOWED=NO
           build
+
+      - name: Install and launch app in iOS Simulator
+        run: |
+          set -euo pipefail
+
+          DEVICE_ID="$(xcrun simctl list devices available --json | python3 -c '
+          import json
+          import sys
+
+          devices = json.load(sys.stdin).get("devices", {})
+          for runtime, runtime_devices in devices.items():
+              if "iOS" not in runtime:
+                  continue
+              for device in runtime_devices:
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      print(device["udid"])
+                      raise SystemExit
+          ')"
+
+          if [[ -z "$DEVICE_ID" ]]; then
+            echo "::warning::No available iPhone Simulator found; launch smoke test skipped."
+            exit 0
+          fi
+
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -type d \
+            -path '*/Build/Products/Debug-iphonesimulator/MusikKu.app' -print -quit)"
+          if [[ -z "$APP_PATH" || ! -d "$APP_PATH" ]]; then
+            echo "::error::Built MusikKu.app bundle was not found."
+            exit 1
+          fi
+
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
+
+          cleanup() {
+            xcrun simctl terminate "$DEVICE_ID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            xcrun simctl shutdown "$DEVICE_ID" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          xcrun simctl boot "$DEVICE_ID" >/dev/null 2>&1 || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          xcrun simctl install "$DEVICE_ID" "$APP_PATH"
+          xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID"
+          sleep 10
+
+          if ! xcrun simctl spawn "$DEVICE_ID" launchctl list |
+            awk -v bundle_id="$BUNDLE_ID" '$1 ~ /^[0-9]+$/ && index($0, bundle_id) { found = 1 } END { exit !found }'; then
+            echo "::error::MusikKu exited after launch."
+            xcrun simctl spawn "$DEVICE_ID" log show --last 30s --style compact \
+              --predicate "process == 'MusikKu' AND messageType >= 16" || true
+            exit 1
+          fi
+
+          echo "iOS Simulator launch smoke test passed for $BUNDLE_ID."
