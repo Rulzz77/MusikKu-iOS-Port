@@ -1,9 +1,53 @@
 import Foundation
 
+struct LyricsSyllable: Hashable {
+    let startMilliseconds: Int
+    let endMilliseconds: Int
+    let startCharacter: Int
+    let endCharacter: Int
+}
+
+struct LyricsWord: Hashable {
+    let startMilliseconds: Int
+    let endMilliseconds: Int
+    let text: String
+    let syllables: [LyricsSyllable]
+
+    func revealedCharacterCount(at position: Int) -> Int {
+        let characters = Array(text)
+        guard !characters.isEmpty else { return 0 }
+        if position <= startMilliseconds { return 0 }
+        if position >= endMilliseconds { return characters.count }
+
+        guard !syllables.isEmpty else {
+            let span = max(endMilliseconds - startMilliseconds, 1)
+            let progress = Double(position - startMilliseconds) / Double(span)
+            return min(characters.count, max(0, Int((progress * Double(characters.count)).rounded(.down))))
+        }
+
+        for syllable in syllables {
+            if position < syllable.startMilliseconds {
+                return max(0, min(characters.count, syllable.startCharacter))
+            }
+            if position < syllable.endMilliseconds {
+                let span = max(syllable.endMilliseconds - syllable.startMilliseconds, 1)
+                let progress = Double(position - syllable.startMilliseconds) / Double(span)
+                let characterSpan = syllable.endCharacter - syllable.startCharacter
+                let revealed = syllable.startCharacter + Int((progress * Double(characterSpan)).rounded(.down))
+                return max(0, min(characters.count, revealed))
+            }
+        }
+        return characters.count
+    }
+}
+
 struct LyricsLine: Identifiable, Hashable {
     let id: Int
     let timeMilliseconds: Int?
     let text: String
+    var words: [LyricsWord] = []
+
+    var isWordSynchronized: Bool { !words.isEmpty }
 }
 
 struct LyricsDocument: Hashable {
@@ -331,7 +375,7 @@ actor LyricsService {
         return lines.sorted {
             ($0.timeMilliseconds ?? 0) < ($1.timeMilliseconds ?? 0)
         }.enumerated().map { index, line in
-            LyricsLine(id: index, timeMilliseconds: line.timeMilliseconds, text: line.text)
+            LyricsLine(id: index, timeMilliseconds: line.timeMilliseconds, text: line.text, words: line.words)
         }
     }
 
@@ -396,11 +440,55 @@ actor LyricsService {
     }
 }
 
+private final class TTMLNode {
+    let name: String
+    let attributes: [String: String]
+    var children: [TTMLChild] = []
+
+    init(name: String, attributes: [String: String]) {
+        self.name = name
+        self.attributes = attributes
+    }
+
+    var textContent: String {
+        children.map { child in
+            switch child {
+            case .text(let text): return text
+            case .element(let node): return node.textContent
+            }
+        }
+        .joined()
+    }
+}
+
+private enum TTMLChild {
+    case text(String)
+    case element(TTMLNode)
+}
+
+private enum TTMLPiece {
+    case text(String)
+    case timed(String, start: Int, end: Int)
+}
+
 private final class TTMLLineParser: NSObject, XMLParserDelegate {
-    private(set) var lines: [LyricsLine] = []
-    private var currentTime: Int?
-    private var currentText = ""
-    private var inParagraph = false
+    private var roots: [TTMLNode] = []
+    private var stack: [TTMLNode] = []
+
+    var lines: [LyricsLine] {
+        Self.collectParagraphs(from: roots)
+            .compactMap(Self.makeLine)
+            .sorted { ($0.timeMilliseconds ?? 0) < ($1.timeMilliseconds ?? 0) }
+            .enumerated()
+            .map { index, line in
+                LyricsLine(
+                    id: index,
+                    timeMilliseconds: line.timeMilliseconds,
+                    text: line.text,
+                    words: line.words
+                )
+            }
+    }
 
     func parser(
         _ parser: XMLParser,
@@ -409,15 +497,22 @@ private final class TTMLLineParser: NSObject, XMLParserDelegate {
         qualifiedName qName: String?,
         attributes attributeDict: [String: String] = [:]
     ) {
-        guard elementName == "p" else { return }
-        inParagraph = true
-        currentText = ""
-        currentTime = Self.timeMilliseconds(attributeDict["begin"])
+        let node = TTMLNode(name: elementName, attributes: attributeDict)
+        if let parent = stack.last {
+            parent.children.append(.element(node))
+        } else {
+            roots.append(node)
+        }
+        stack.append(node)
     }
 
     func parser(_ parser: XMLParser, foundCharacters string: String) {
-        guard inParagraph else { return }
-        currentText += string
+        stack.last?.children.append(.text(string))
+    }
+
+    func parser(_ parser: XMLParser, foundCDATA CDATABlock: Data) {
+        guard let value = String(data: CDATABlock, encoding: .utf8) else { return }
+        stack.last?.children.append(.text(value))
     }
 
     func parser(
@@ -426,21 +521,179 @@ private final class TTMLLineParser: NSObject, XMLParserDelegate {
         namespaceURI: String?,
         qualifiedName qName: String?
     ) {
-        guard elementName == "p" else { return }
-        let text = currentText
+        guard !stack.isEmpty else { return }
+        stack.removeLast()
+    }
+
+    private static func collectParagraphs(from nodes: [TTMLNode]) -> [TTMLNode] {
+        var result: [TTMLNode] = []
+        func walk(_ node: TTMLNode) {
+            if node.name == "p" {
+                result.append(node)
+                return
+            }
+            for child in node.children {
+                if case .element(let childNode) = child {
+                    walk(childNode)
+                }
+            }
+        }
+        nodes.forEach(walk)
+        return result
+    }
+
+    private static func makeLine(_ paragraph: TTMLNode) -> LyricsLine? {
+        let pieces = collectPieces(from: paragraph)
+        let words = mergeIntoWords(pieces)
+        let begin = timeMilliseconds(paragraph.attributes["begin"])
+            ?? words.first?.startMilliseconds
+        let plainText = paragraph.textContent
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        if !text.isEmpty {
-            lines.append(LyricsLine(id: lines.count, timeMilliseconds: currentTime, text: text))
+        let text = words.isEmpty ? plainText : words.map(\.text).joined(separator: " ")
+        guard !text.isEmpty else { return nil }
+
+        return LyricsLine(
+            id: 0,
+            timeMilliseconds: begin,
+            text: text,
+            words: words
+        )
+    }
+
+    private static func collectPieces(from root: TTMLNode) -> [TTMLPiece] {
+        var output: [TTMLPiece] = []
+
+        func hasTimedDescendant(_ node: TTMLNode) -> Bool {
+            for child in node.children {
+                guard case .element(let nested) = child else { continue }
+                if nested.attributes["begin"] != nil || nested.attributes["end"] != nil {
+                    return true
+                }
+                if hasTimedDescendant(nested) { return true }
+            }
+            return false
         }
-        currentText = ""
-        currentTime = nil
-        inParagraph = false
+
+        func collect(_ node: TTMLNode) {
+            for child in node.children {
+                switch child {
+                case .text(let text):
+                    if !text.isEmpty { output.append(.text(text)) }
+                case .element(let element):
+                    let role = element.attributes["ttm:role"] ?? element.attributes["role"] ?? ""
+                    if role == "x-translation" || role == "x-roman" { continue }
+
+                    let start = timeMilliseconds(element.attributes["begin"])
+                    let end = timeMilliseconds(element.attributes["end"])
+                    if let start, let end, end > start, !hasTimedDescendant(element) {
+                        let text = element.textContent
+                        if !text.isEmpty {
+                            output.append(.timed(text, start: start, end: end))
+                        }
+                    } else {
+                        collect(element)
+                    }
+                }
+            }
+        }
+
+        collect(root)
+        return output
+    }
+
+    private static func mergeIntoWords(_ pieces: [TTMLPiece]) -> [LyricsWord] {
+        var result: [LyricsWord] = []
+        var currentText = ""
+        var syllables: [LyricsSyllable] = []
+        var wordStart = 0
+        var wordEnd = 0
+        var hasTimedText = false
+
+        func normalizedSyllables(_ parts: [LyricsSyllable], length: Int) -> [LyricsSyllable] {
+            let usable = parts
+                .filter { $0.endCharacter > $0.startCharacter && $0.startCharacter < length }
+                .sorted { $0.startCharacter < $1.startCharacter }
+            guard usable.count >= 2 else { return [] }
+            return usable.enumerated().map { index, part in
+                LyricsSyllable(
+                    startMilliseconds: part.startMilliseconds,
+                    endMilliseconds: max(part.startMilliseconds, part.endMilliseconds),
+                    startCharacter: index == 0 ? 0 : part.startCharacter,
+                    endCharacter: usable.dropFirst(index + 1).first?.startCharacter ?? length
+                )
+            }
+        }
+
+        func flush() {
+            let text = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if hasTimedText && !text.isEmpty {
+                result.append(
+                    LyricsWord(
+                        startMilliseconds: wordStart,
+                        endMilliseconds: max(wordStart, wordEnd),
+                        text: text,
+                        syllables: normalizedSyllables(syllables, length: text.count)
+                    )
+                )
+            }
+            currentText = ""
+            syllables.removeAll(keepingCapacity: true)
+            hasTimedText = false
+        }
+
+        for piece in pieces {
+            switch piece {
+            case .text(let text):
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    flush()
+                } else if hasTimedText {
+                    currentText += text
+                }
+
+            case .timed(let rawText, let start, let end):
+                guard !rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+
+                if rawText.first?.isWhitespace == true {
+                    flush()
+                }
+                if currentText.isEmpty {
+                    wordStart = start
+                }
+
+                let cleaned = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let startCharacter = currentText.count
+                currentText += cleaned
+                let endCharacter = currentText.count
+                syllables.append(
+                    LyricsSyllable(
+                        startMilliseconds: start,
+                        endMilliseconds: end,
+                        startCharacter: startCharacter,
+                        endCharacter: endCharacter
+                    )
+                )
+                wordEnd = end
+                hasTimedText = true
+
+                if rawText.last?.isWhitespace == true {
+                    flush()
+                }
+            }
+        }
+
+        flush()
+        return result
     }
 
     private static func timeMilliseconds(_ raw: String?) -> Int? {
         guard var value = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
             return nil
+        }
+        if value.hasSuffix("ms") {
+            value.removeLast(2)
+            guard let milliseconds = Double(value) else { return nil }
+            return Int(milliseconds.rounded())
         }
         if value.hasSuffix("s") {
             value.removeLast()

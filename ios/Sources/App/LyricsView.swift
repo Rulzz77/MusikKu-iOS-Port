@@ -85,13 +85,19 @@ struct LyricsSheet: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 23) {
                         ForEach(document.lines) { line in
-                            Text(line.text)
-                                .font(.system(size: 24, weight: line.id == activeLineID ? .bold : .semibold, design: .rounded))
-                                .foregroundStyle(line.id == activeLineID ? .white : Color.white.opacity(document.isSynchronized ? 0.42 : 0.82))
-                                .scaleEffect(line.id == activeLineID ? 1.015 : 1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .id(line.id)
+                            Group {
+                                if line.id == activeLineID && line.isWordSynchronized {
+                                    karaokeText(line, at: Int((playback.position * 1_000).rounded()))
+                                } else {
+                                    Text(line.text)
+                                        .foregroundColor(line.id == activeLineID ? .white : Color.white.opacity(document.isSynchronized ? 0.42 : 0.82))
+                                }
+                            }
+                            .font(.system(size: 24, weight: line.id == activeLineID ? .bold : .semibold, design: .rounded))
+                            .scaleEffect(line.id == activeLineID ? 1.015 : 1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .id(line.id)
                         }
                     }
                     .padding(.horizontal, 22)
@@ -111,6 +117,29 @@ struct LyricsSheet: View {
                 }
             }
         }
+    }
+
+    private func karaokeText(_ line: LyricsLine, at position: Int) -> Text {
+        var result = Text("")
+
+        for (index, word) in line.words.enumerated() {
+            let characters = Array(word.text)
+            let revealed = min(characters.count, max(0, word.revealedCharacterCount(at: position)))
+
+            if revealed > 0 {
+                result = result + Text(String(characters.prefix(revealed)))
+                    .foregroundColor(.white)
+            }
+            if revealed < characters.count {
+                result = result + Text(String(characters.dropFirst(revealed)))
+                    .foregroundColor(Color.white.opacity(0.38))
+            }
+            if index < line.words.count - 1 {
+                result = result + Text(" ")
+            }
+        }
+
+        return result
     }
 
     private var emptyState: some View {
