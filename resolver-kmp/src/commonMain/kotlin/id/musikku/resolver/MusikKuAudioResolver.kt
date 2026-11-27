@@ -41,6 +41,7 @@ class MusikKuAudioResolver {
      * Preloads player configuration and cipher support before the first play.
      * This reduces the cold-start work performed after the user taps a track.
      */
+    @Throws(Exception::class)
     suspend fun prewarm(
         language: String = "id",
         region: String = "ID"
