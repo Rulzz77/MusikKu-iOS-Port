@@ -116,7 +116,11 @@ final class PlaybackManager: ObservableObject {
     }
 
     func togglePlayback() {
-        isPlaying ? pause() : resume()
+        if isResolving || isPlaying {
+            pause()
+        } else {
+            resume()
+        }
     }
 
     func pause() {
@@ -339,10 +343,9 @@ final class PlaybackManager: ObservableObject {
         // Keep the pause intent visible while AVPlayer waits for bytes to arrive.
         timeControlObservation = nextPlayer.observe(\.timeControlStatus, options: [.new]) { [weak self, weak nextPlayer] observedPlayer, _ in
             guard let nextPlayer else { return }
-            let status = observedPlayer.timeControlStatus
             Task { @MainActor in
                 guard let self, self.player === nextPlayer else { return }
-                switch status {
+                switch nextPlayer.timeControlStatus {
                 case .playing:
                     self.isPlaying = true
                     self.isBuffering = false
