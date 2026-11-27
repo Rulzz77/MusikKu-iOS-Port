@@ -75,7 +75,8 @@ struct CatalogItem: Identifiable, Hashable {
             artist: artist,
             album: albumName,
             artworkURL: artworkURL,
-            streamURL: nil
+            streamURL: nil,
+            durationSeconds: durationSeconds
         )
     }
 }

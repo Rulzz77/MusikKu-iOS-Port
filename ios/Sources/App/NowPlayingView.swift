@@ -54,6 +54,7 @@ struct NowPlayingView: View {
     @EnvironmentObject private var library: MusicLibraryStore
     @State private var isShowingQueue = false
     @State private var isShowingPlaylistPicker = false
+    @State private var isShowingLyrics = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -80,6 +81,13 @@ struct NowPlayingView: View {
             if let track = playback.currentTrack {
                 PlaylistPickerSheet(track: track)
                     .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(isPresented: $isShowingLyrics) {
+            if let track = playback.currentTrack {
+                LyricsSheet(track: track)
+                    .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
         }
@@ -218,15 +226,24 @@ struct NowPlayingView: View {
             .buttonStyle(.plain)
             .padding(.vertical, 4)
 
-            HStack {
+            HStack(spacing: 14) {
                 Button {
                     isShowingPlaylistPicker = true
                 } label: {
-                    Label("Tambah ke playlist", systemImage: "text.badge.plus")
+                    Label("Playlist", systemImage: "text.badge.plus")
                         .font(.subheadline.weight(.semibold))
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
+
+                Button {
+                    isShowingLyrics = true
+                } label: {
+                    Label("Lirik", systemImage: "quote.bubble")
+                        .font(.subheadline.weight(.semibold))
+                }
+
+                Spacer(minLength: 0)
 
                 Button {
                     isShowingQueue = true
