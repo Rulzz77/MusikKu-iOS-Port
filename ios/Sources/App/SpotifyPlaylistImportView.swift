@@ -120,6 +120,11 @@ struct SpotifyPlaylistImportView: View {
         entry.matchedTrack == nil && manualMatches[entry.id] == nil
     }
 
+    private var manuallyMatchedEntries: [SpotifyPlaylistImportEntry] {
+        guard let result else { return [] }
+        return result.entries.filter { manualMatches[$0.id] != nil }
+    }
+
     @ViewBuilder
     private func resultSection(_ result: SpotifyPlaylistImportResult) -> some View {
         VStack(alignment: .leading, spacing: 13) {
@@ -162,31 +167,36 @@ struct SpotifyPlaylistImportView: View {
                 .font(.caption)
                 .foregroundStyle(MusikKuStyle.secondary)
 
-            if !result.unmatchedEntries.isEmpty {
+            if !result.unmatchedEntries.filter(needsManualMatch).isEmpty {
                 VStack(alignment: .leading, spacing: 7) {
                     Text("Belum ditemukan")
                         .font(.subheadline.weight(.semibold))
-                    ForEach(result.unmatchedEntries.filter(needsManualMatch).prefix(8)) { entry in
+                    ForEach(result.unmatchedEntries.filter(needsManualMatch)) { entry in
                         sourceTrackRow(entry, note: "Belum ada kecocokan yang cukup aman")
-                    }
-                    if result.unmatchedEntries.filter(needsManualMatch).count > 8 {
-                        Text("Dan \(result.unmatchedEntries.filter(needsManualMatch).count - 8) lagu lainnya.")
-                            .font(.caption)
-                            .foregroundStyle(MusikKuStyle.secondary)
                     }
                 }
             }
 
-            if !result.failedEntries.isEmpty {
+            if !result.failedEntries.filter(needsManualMatch).isEmpty {
                 VStack(alignment: .leading, spacing: 7) {
                     Text("Pemeriksaan gagal")
                         .font(.subheadline.weight(.semibold))
-                    ForEach(result.failedEntries.filter(needsManualMatch).prefix(5)) { entry in
+                    ForEach(result.failedEntries.filter(needsManualMatch)) { entry in
                         sourceTrackRow(entry, note: "Katalog tidak dapat diperiksa")
                     }
                     Text("Lagu ini belum dinyatakan tidak tersedia; pencariannya gagal karena gangguan jaringan atau layanan.")
                         .font(.caption)
                         .foregroundStyle(.orange)
+                }
+            }
+
+            if !manuallyMatchedEntries.isEmpty {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("Dipilih manual")
+                        .font(.subheadline.weight(.semibold))
+                    ForEach(manuallyMatchedEntries) { entry in
+                        sourceTrackRow(entry, note: "Pengganti dipilih oleh kamu")
+                    }
                 }
             }
 
@@ -254,10 +264,12 @@ struct SpotifyPlaylistImportView: View {
                     }
                 }
                 Spacer(minLength: 4)
-                Button(manualMatches[entry.id] == nil ? "Cari" : "Ganti") {
+                Button {
                     editingEntry = entry
+                } label: {
+                    Text(manualMatches[entry.id] == nil ? "Cari" : "Ganti")
+                        .font(.caption.weight(.semibold))
                 }
-                .font(.caption.weight(.semibold))
                 .buttonStyle(.bordered)
                 .tint(MusikKuStyle.accent)
             }
