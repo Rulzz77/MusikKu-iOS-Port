@@ -26,7 +26,7 @@ Implemented in the current development branch:
 - Upstream GPL-3.0 license and third-party notices copied into this derivative repository.
 
 Still not integrated or not fully verified:
-- WKWebView BotGuard initialization and token generation still require successful iOS CI compilation and live runtime validation; YouTube can change its challenge protocol, and attestation-gated playback is not yet confirmed.
+- WKWebView BotGuard initialization and token-provider code compile successfully in iOS CI. Live challenge execution, PoToken generation, attestation-gated stream extraction, and audible playback still require runtime verification; YouTube can change its challenge protocol.
 - Authenticated Google/YouTube account sessions, account/channel switching, account likes, and server-synced playlists.
 - Home/search/browse continuation paging, richer catalogue detail parity, and nested browse navigation.
 - Other Android catalogue/add-on sources such as JioSaavn and custom modules.
@@ -38,7 +38,10 @@ Still not integrated or not fully verified:
 The resolver uses InnerTubeX `v0.7.0`, matching Android's pinned dependency. It requests direct audio transport because AVPlayer cannot consume the Android/SABR segmented path directly. The iOS PoToken provider uses an isolated non-persistent WebKit data store and does not use Google account cookies. The provider is a best-effort technical integration, not a guarantee that every YouTube item will be playable.
 
 Validation:
-- GitHub Actions iOS Simulator build passed at commit `fdb8953` (KMP XCFramework build, XcodeGen project generation, and Xcode simulator build).
-- A new WKWebView BotGuard provider and resolver wiring have now been added after that passing build; their CI build and runtime behavior are pending.
-- A successful simulator compile does not verify live BotGuard token generation, YouTube stream extraction, or audible playback. End-to-end playback still needs real-device testing.
+- GitHub Actions iOS Simulator build passed at commit `624ffe1` (`624ffe1379fb5f17c19a9a77e3b680af34e3afc2`). All three core steps passed: InnerTubeX iOS XCFramework build, XcodeGen project generation, and iOS Simulator compile.
+- The passing CI includes the WKWebView BotGuard provider, Ktor Darwin request path, non-persistent WebKit data store, and the recent token-result cleanup.
+- CI compilation does not execute the app or verify live BotGuard challenge compatibility, PoToken generation, YouTube stream extraction, or audible playback. End-to-end playback still needs runtime and physical-device testing.
 - Physical-iPhone playback, background audio, audio routing, and lock-screen tests remain outstanding.
+
+
+Pull request: [#1 — phase-1-ui-library-queue → main](https://github.com/Rulzz77/MusikKu-iOS-Port/pull/1). The PR remains open for further testing and review.
