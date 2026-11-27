@@ -12,11 +12,12 @@ The project is an actively developed iOS port, not yet a complete feature-equiva
 - An AVPlayer queue foundation with enqueue, removal, next/previous, shuffle, repeat-one, and automatic advance.
 - A mini-player and full Now Playing screen with artwork, seeking, favorite, playlist, and queue controls.
 - Lock-screen / Control Center transport commands and audio-interruption handling.
-- Read-only YouTube Music catalog search using the same anonymous WEB_REMIX request shape and filter parameters as the Android project.
+- Read-only YouTube Music catalog search and the first Home feed shelves using the same anonymous WEB_REMIX request shape as the Android project.
 - Search filters for all, songs, videos, albums, artists, and playlists.
 - Save catalog song/video metadata to the local favorites library.
+- Home shelf cards with artwork, titles, and artist/subtitle metadata.
 
-Search currently retrieves catalogue metadata and artwork. It does not yet resolve a playable audio URL, expose account/library writes, or page through continuation results. The iOS stream resolver and the Android-specific InnerTubeX / PoToken path still need a native iOS implementation.
+Home and Search currently retrieve catalogue metadata and artwork. They do not yet resolve playable audio URLs, expose account/library writes, or page through continuation results. The iOS stream resolver and the Android-specific InnerTubeX / PoToken path still need a native iOS implementation.
 
 ## Requirements
 

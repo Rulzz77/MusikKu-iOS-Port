@@ -2,7 +2,7 @@
 
 | Android MusikKu capability | iOS direction | Status in this starter |
 |---|---|---|
-| Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | Anonymous WEB_REMIX search + All/Songs/Videos/Albums/Artists/Playlists filters; metadata only, no continuation yet |
+| Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | Anonymous WEB_REMIX search filters plus first-page FEmusic_home shelves; metadata only, no paging/details yet |
 | Remote audio playback | AVPlayer / AVQueuePlayer | AVPlayer foundation; no native stream resolver connected to catalog results yet |
 | Background playback | AVAudioSession `.playback` + iOS background audio mode | Declared; physical-device verification outstanding |
 | Lock-screen / Control Center | MPNowPlayingInfoCenter + MPRemoteCommandCenter | Basic metadata and play/pause/skip/next/previous commands |
@@ -23,6 +23,10 @@
 | DSD / DST codecs | Port/test each decoder and license independently | Not implemented |
 | Car Mode / widgets | CarPlay / WidgetKit design and entitlement review | Not implemented |
 | Android TV / Wear OS | Separate Apple TV / watchOS products only if required | Out of current scope |
+
+## Source and license alignment
+
+The iOS repository includes the Android MusikKu repository's GPL-3.0 license and upstream attribution notice. Native Swift files that port GPL-covered behaviour remain subject to the applicable license terms. Review third-party notices and distribution obligations before releasing binaries.
 
 ## Source and license alignment
 
