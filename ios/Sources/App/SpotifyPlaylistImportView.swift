@@ -182,7 +182,10 @@ struct SpotifyPlaylistImportView: View {
                     Text("Pemeriksaan gagal")
                         .font(.subheadline.weight(.semibold))
                     ForEach(result.failedEntries.filter(needsManualMatch)) { entry in
-                        sourceTrackRow(entry, note: "Katalog tidak dapat diperiksa")
+                        sourceTrackRow(
+                            entry,
+                            note: entry.lookupFailure ?? "Katalog tidak dapat diperiksa"
+                        )
                     }
                     Text("Lagu ini belum dinyatakan tidak tersedia; pencariannya gagal karena gangguan jaringan atau layanan.")
                         .font(.caption)

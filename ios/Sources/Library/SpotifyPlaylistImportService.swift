@@ -8,6 +8,7 @@ struct SpotifySourceTrack: Hashable, Identifiable {
     let durationMilliseconds: Int?
     let album: String?
     let spotifyID: String?
+    let metadataAvailable: Bool
 
     var id: String { "\(position)|\(spotifyID ?? title)" }
     var leadArtist: String { artistNames.first ?? artistText }
@@ -250,8 +251,9 @@ actor SpotifyPlaylistImportService {
         let parsedTracks = rawTracks.enumerated().compactMap { position, raw -> SpotifySourceTrack? in
             let wrapper = Self.dictionary(raw) ?? [:]
             let item = Self.dictionary(Self.nested(wrapper, ["itemV2", "data"])) ?? wrapper
-            guard let title = Self.text(item["title"]) ?? Self.text(item["name"]),
-                  !title.isEmpty else { return nil }
+            let parsedTitle = Self.text(item["title"]) ?? Self.text(item["name"])
+            let metadataAvailable = parsedTitle != nil
+            let title = parsedTitle ?? "Track tidak tersedia"
 
             let artistsObject = item["artists"]
             let artistItems = artistsObject as? [Any]
@@ -285,7 +287,8 @@ actor SpotifyPlaylistImportService {
                 artistNames: artistNames,
                 durationMilliseconds: duration,
                 album: album,
-                spotifyID: spotifyID?.components(separatedBy: CharacterSet(charactersIn: ":/")).last
+                spotifyID: spotifyID?.components(separatedBy: CharacterSet(charactersIn: ":/")).last,
+                metadataAvailable: metadataAvailable
             )
         }
 
@@ -294,6 +297,14 @@ actor SpotifyPlaylistImportService {
     }
 
     private nonisolated static func resolve(_ source: SpotifySourceTrack) async -> SpotifyPlaylistImportEntry {
+        guard source.metadataAvailable else {
+            return SpotifyPlaylistImportEntry(
+                source: source,
+                matchedTrack: nil,
+                lookupFailure: "Spotify tidak menyediakan metadata judul untuk lagu ini."
+            )
+        }
+
         let primaryArtist = source.leadArtist.trimmingCharacters(in: .whitespacesAndNewlines)
         let queries = [
             "\(source.title) \(primaryArtist)".trimmingCharacters(in: .whitespacesAndNewlines),
