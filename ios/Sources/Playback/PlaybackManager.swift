@@ -60,7 +60,6 @@ final class PlaybackManager: ObservableObject {
     private var timeControlObservation: NSKeyValueObservation?
     private var shouldResumeAfterInterruption = false
     private var resolveTask: Task<Void, Never>?
-    private var resolvedStreamClient: String?
     private let streamResolver = MusikKuAudioResolver()
     private var artworkTask: Task<Void, Never>?
     private var loadedArtworkURL: URL?
@@ -411,7 +410,6 @@ final class PlaybackManager: ObservableObject {
 
         currentTrack = track
         pendingPlaybackStartTrackID = track.id
-        resolvedStreamClient = nil
         isBuffering = false
         position = 0
         duration = 0
@@ -466,10 +464,14 @@ final class PlaybackManager: ObservableObject {
 
                 let headerData = Data(resolved.headersJson.utf8)
                 let headers = (try? JSONSerialization.jsonObject(with: headerData)) as? [String: String] ?? [:]
-                self.resolvedStreamClient = resolved.clientName
                 self.resolveTask = nil
                 self.isResolving = false
-                self.startPlayer(track: track, url: url, headers: headers)
+                self.startPlayer(
+                    track: track,
+                    url: url,
+                    headers: headers,
+                    resolvedClientName: resolved.clientName
+                )
             } catch {
                 guard !Task.isCancelled, self.currentTrack?.id == track.id else { return }
                 self.pendingPlaybackStartTrackID = nil
@@ -482,7 +484,12 @@ final class PlaybackManager: ObservableObject {
         }
     }
 
-    private func startPlayer(track: MusicTrack, url: URL, headers: [String: String]) {
+    private func startPlayer(
+        track: MusicTrack,
+        url: URL,
+        headers: [String: String],
+        resolvedClientName: String? = nil
+    ) {
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
@@ -521,9 +528,8 @@ final class PlaybackManager: ObservableObject {
             let message = observedItem.error?.localizedDescription ?? "Sumber audio tidak dapat diputar."
             Task { @MainActor in
                 guard let self else { return }
-                if let failedClient = self.resolvedStreamClient,
+                if let failedClient = resolvedClientName,
                    let videoID = track.youtubeVideoID {
-                    self.resolvedStreamClient = nil
                     try? await self.streamResolver.markStreamClientFailed(
                         videoId: videoID,
                         clientName: failedClient
