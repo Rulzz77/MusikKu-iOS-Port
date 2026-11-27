@@ -6,6 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Keep only the newest validation for a pull request/branch.
+concurrency:
+  group: ios-simulator-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
