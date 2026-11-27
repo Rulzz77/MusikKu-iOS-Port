@@ -56,9 +56,6 @@ jobs:
       - name: Build InnerTubeX iOS XCFramework
         run: gradle --no-daemon --stacktrace :resolver-kmp:assembleMusikKuResolverKitReleaseXCFramework
 
-      - name: Generate Xcode project
-        run: xcodegen generate --spec ios/project.yml --project ios
-
       - name: Validate iOS release assets and privacy manifest
         run: |
           set -euo pipefail
@@ -89,6 +86,9 @@ jobs:
           assert (legal_dir / "THIRD_PARTY_NOTICES.md").read_bytes() == Path("THIRD_PARTY_NOTICES.md").read_bytes(), "Bundled third-party notices are out of sync"
           print("AppIcon, privacy manifest and bundled legal-notice validation passed.")
           PY
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec ios/project.yml --project ios
 
       - name: Build for iOS Simulator
         run: >-
