@@ -15,7 +15,7 @@ import com.metrolist.innertubex.extraction.strategy.PoTokenProviderKind
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.darwin.Darwin
 import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.request.contentType
+import io.ktor.http.contentType
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
