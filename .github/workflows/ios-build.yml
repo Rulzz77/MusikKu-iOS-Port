@@ -154,7 +154,17 @@ jobs:
             exit 1
           fi
 
+          xcrun simctl io "$DEVICE_ID" screenshot "$GITHUB_WORKSPACE/MusikKu-Simulator-UI-Preview.png"
+          echo "Captured iOS Simulator UI preview for $BUNDLE_ID."
           echo "iOS Simulator launch smoke test passed for $BUNDLE_ID."
+
+      - name: Upload iOS Simulator UI preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: MusikKu-iOS-UI-Preview
+          path: MusikKu-Simulator-UI-Preview.png
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Package iOS Simulator app for Appetize
         run: |

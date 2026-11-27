@@ -879,7 +879,7 @@ actor MusicCatalogService {
         let subtitleRuns = Self.dictionary(subtitleObject)?["runs"] as? [Any] ?? []
         let artists = Self.artistCredits(subtitleRuns)
         let artist = artists.map(\.name).joined(separator: ", ")
-            .nonEmpty ?? artistPart ?? "Unknown artist"
+            .nonEmpty ?? artistPart ?? "Artis tidak diketahui"
 
         let albumCredit = Self.browseCredit(subtitleRuns, pageType: "ALBUM")
         let durationSeconds = durationText.flatMap(Self.durationSeconds)
