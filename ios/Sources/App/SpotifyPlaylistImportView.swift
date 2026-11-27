@@ -187,7 +187,7 @@ struct SpotifyPlaylistImportView: View {
                             note: entry.lookupFailure ?? "Katalog tidak dapat diperiksa"
                         )
                     }
-                    Text("Lagu ini belum dinyatakan tidak tersedia; pencariannya gagal karena gangguan jaringan atau layanan.")
+                    Text("Sebagian lagu tidak dapat diperiksa karena metadata sumber tidak lengkap atau layanan katalog terganggu. Lagu tidak otomatis dinyatakan tidak tersedia.")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
