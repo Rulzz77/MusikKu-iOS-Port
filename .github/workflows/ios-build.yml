@@ -122,3 +122,50 @@ jobs:
           fi
 
           echo "iOS Simulator launch smoke test passed for $BUNDLE_ID."
+
+      - name: Build unsigned IPA for physical iPhone
+        run: |
+          set -euo pipefail
+
+          DEVICE_DERIVED_DATA="$RUNNER_TEMP/DerivedData-iOSDevice"
+          xcodebuild \
+            -project ios/MusikKu.xcodeproj \
+            -scheme MusikKu \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DEVICE_DERIVED_DATA" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+          APP_PATH="$DEVICE_DERIVED_DATA/Build/Products/Release-iphoneos/MusikKu.app"
+          if [[ ! -d "$APP_PATH" ]]; then
+            echo "::error::Device MusikKu.app bundle was not found."
+            exit 1
+          fi
+
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
+          if [[ "$BUNDLE_ID" != "id.musikku.ios" ]]; then
+            echo "::error::Unexpected bundle identifier: $BUNDLE_ID"
+            exit 1
+          fi
+
+          IPA_STAGING="$RUNNER_TEMP/MusikKu-IPA"
+          mkdir -p "$IPA_STAGING/Payload"
+          ditto "$APP_PATH" "$IPA_STAGING/Payload/MusikKu.app"
+          (cd "$IPA_STAGING" && /usr/bin/zip -qry "$RUNNER_WORKSPACE/MusikKu-iOS-unsigned.ipa" Payload)
+
+          /usr/bin/unzip -l "$RUNNER_WORKSPACE/MusikKu-iOS-unsigned.ipa" | grep -q 'Payload/MusikKu.app/Info.plist'
+          echo "Created unsigned iPhone IPA for $BUNDLE_ID."
+
+      - name: Upload unsigned IPA for Sideloadly
+        uses: actions/upload-artifact@v4
+        with:
+          name: MusikKu-iOS-unsigned-IPA
+          path: MusikKu-iOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
