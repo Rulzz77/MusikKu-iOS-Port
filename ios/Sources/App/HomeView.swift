@@ -209,10 +209,18 @@ struct HomeView: View {
 
                 Spacer()
 
-                Text(playback.isResolving ? "MENGAMBIL STREAM" : (playback.isPlaying ? "SEDANG DIPUTAR" : "SIAP"))
+                Text(
+                    playback.isResolving
+                        ? "MENGAMBIL STREAM"
+                        : (playback.isBuffering ? "MEMUAT AUDIO" : (playback.isPlaying ? "SEDANG DIPUTAR" : "SIAP"))
+                )
                     .font(.system(size: 9, weight: .bold))
                     .tracking(0.6)
-                    .foregroundStyle(playback.isResolving ? MusikKuStyle.accent : (playback.isPlaying ? .green : MusikKuStyle.secondary))
+                    .foregroundStyle(
+                        playback.isResolving || playback.isBuffering
+                            ? MusikKuStyle.accent
+                            : (playback.isPlaying ? .green : MusikKuStyle.secondary)
+                    )
             }
 
             HStack(spacing: 13) {
@@ -256,10 +264,10 @@ struct HomeView: View {
                 .foregroundStyle(MusikKuStyle.secondary)
             }
 
-            if playback.isResolving {
+            if playback.isResolving || playback.isBuffering {
                 HStack(spacing: 8) {
                     ProgressView().tint(MusikKuStyle.accent)
-                    Text("Mengambil stream audio…")
+                    Text(playback.isResolving ? "Mengambil stream audio…" : "Memuat audio…")
                         .font(.caption)
                         .foregroundStyle(MusikKuStyle.secondary)
                 }
@@ -283,8 +291,7 @@ struct HomeView: View {
                         .background(MusikKuStyle.accent.gradient, in: Circle())
                 }
                 .disabled(playback.currentTrack == nil)
-                .accessibilityLabel(playback.isResolving ? "Mengambil stream" : (playback.isPlaying ? "Jeda" : "Putar"))
-                .disabled(playback.isResolving)
+                .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan audio" : (playback.isPlaying ? "Jeda" : "Putar"))
 
                 Button {
                     playback.playNext()
