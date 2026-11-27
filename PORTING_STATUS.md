@@ -1,31 +1,33 @@
 # Porting status
 
-Current state: **iOS foundation + interactive player/library UI — not a complete MusikKu port.**
+Current state: **native iOS UI + local library + read-only catalog search — not a complete MusikKu port.**
 
 Implemented in the current development branch:
 - SwiftUI app with Beranda, Cari, and Koleksi tabs.
 - Persistent local playlists and favorites using versioned UserDefaults JSON keys.
-- Playlist detail can play a playlist in order and remove tracks.
-- Favorites can be played from the library.
+- Playlist detail can play a playlist in order and remove tracks when a track has an authorized stream URL.
 - AVPlayer queue foundation: play a queue, enqueue, remove a queue item, next, previous, shuffle, repeat-one, and automatic advance at end of item.
-- Mini-player appears while a track is selected and opens a full Now Playing screen.
-- Full player supports artwork display, seek, play/pause, next/previous, shuffle, repeat-one, favorite toggle, add-to-playlist, and queue inspection/removal.
-- Lock-screen / Control Center play, pause, next, previous, and 15-second seek commands.
-- Audio interruption handling and playback error reporting for failed AVPlayer items.
-- XcodeGen project specification and unsigned iOS Simulator CI workflow.
+- Mini-player and full Now Playing screen with artwork, seek, favorite, add-to-playlist, and queue inspection/removal.
+- Lock-screen / Control Center play, pause, next, previous, seek, and asynchronously loaded artwork.
+- Audio interruption and headphone-removal pause handling.
+- Read-only YouTube Music search using the same anonymous WEB_REMIX endpoint, client identity, and filter parameters used in the Android repository.
+- Search filters for all, songs, videos, albums, artists, and playlists.
+- Search result artwork, artist/title/duration metadata, explicit marker where exposed, and local save-to-favorites for track/video results.
+- Upstream GPL-3.0 license and third-party notices copied into this derivative repository.
 
 Still not integrated:
-- Any production music catalog, authorized stream resolver, or online search provider.
-- Authentication, token refresh, account sync, or secure account storage.
-- Timed lyrics and translation providers.
-- Recommendation engine, listening history, and cross-device sync.
-- Native DSP, equalizer, crossfade, advanced codec, and specialized device-routing parity.
+- Native audio stream resolver. Search results currently have no playable stream URL and cannot start AVPlayer.
+- Home feed shelves, album/artist/playlist detail browsing, suggestions, and search continuation paging.
+- Authenticated Google/YouTube account sessions, account/channel switching, library writes, and server-synced likes/playlists.
+- Other Android catalogue/add-on sources such as JioSaavn and custom modules.
+- Timed lyrics, translations, provider selection, and local TTML import.
+- Download manager, offline audio, listening history, recommendations, smart playlists, and cross-device sync.
+- Native DSP, equalizer, crossfade, advanced codecs, USB audio, and specialized device-routing parity.
 - TestFlight or App Store release signing.
 
-The app deliberately does not include unofficial stream extraction or claim that Android YouTube Music playback is iOS/App Store-ready. Playback requires a valid stream URL from a provider authorized for use in this app.
+The catalog adapter makes anonymous read-only search requests. It does not send Google cookies or account credentials and does not change any account. Playback still requires a native resolver that returns a valid stream URL from a source authorized for this app.
 
 Validation:
-- Starter commit passed the GitHub Actions iOS Simulator build.
-- First UI/library milestone passed the GitHub Actions iOS Simulator build.
-- The new full-player/queue/favorites UI changes are pending a fresh CI build.
-- Physical-device background playback and interruption tests remain outstanding.
+- Starter and first UI/player milestones passed the GitHub Actions iOS Simulator build.
+- The catalog search milestone is pending a fresh CI build.
+- Physical-iPhone playback, background audio, route, and lock-screen tests remain outstanding.

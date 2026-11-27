@@ -12,8 +12,11 @@ The project is an actively developed iOS port, not yet a complete feature-equiva
 - An AVPlayer queue foundation with enqueue, removal, next/previous, shuffle, repeat-one, and automatic advance.
 - A mini-player and full Now Playing screen with artwork, seeking, favorite, playlist, and queue controls.
 - Lock-screen / Control Center transport commands and audio-interruption handling.
+- Read-only YouTube Music catalog search using the same anonymous WEB_REMIX request shape and filter parameters as the Android project.
+- Search filters for all, songs, videos, albums, artists, and playlists.
+- Save catalog song/video metadata to the local favorites library.
 
-The search screen intentionally shows that the catalog is not connected yet. No production catalog, stream resolver, account provider, or lyric provider is included at this stage.
+Search currently retrieves catalogue metadata and artwork. It does not yet resolve a playable audio URL, expose account/library writes, or page through continuation results. The iOS stream resolver and the Android-specific InnerTubeX / PoToken path still need a native iOS implementation.
 
 ## Requirements
 
@@ -46,11 +49,13 @@ open ios/MusikKu.xcodeproj
 
 ## Important limitations
 
-- The catalog and online search are not connected.
-- Playback requires a valid HTTP(S) stream URL provided by a source authorized for use in this app.
+- Search is connected to the Android project's anonymous WEB_REMIX catalogue request shape, but service availability and response changes are controlled by the third-party endpoint.
+- Search results are metadata only until a native, authorized stream resolver supplies a valid HTTP(S) URL to AVPlayer.
 - Background audio is declared and the AVAudioSession is configured, but it still needs physical-iPhone verification.
 - Local playlists and favorites are stored on the current device only; no login or cloud sync is implemented.
 - The project does not currently provide APK-style self-updates. iOS distribution uses TestFlight / App Store channels.
 - A technically successful build does not by itself establish third-party service permission or App Store approval.
+
+The iOS repository carries the upstream GPL-3.0 license and third-party attribution from the Android MusikKu source; see [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Check the license and distribution requirements before publishing an iOS binary.
 
 See [the porting audit](docs/IOS_PORTING_AUDIT.md), [feature migration matrix](docs/FEATURE_MIGRATION_MATRIX.md), and [porting status](PORTING_STATUS.md) for details.

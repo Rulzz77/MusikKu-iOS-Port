@@ -2,15 +2,15 @@
 
 | Android MusikKu capability | iOS direction | Status in this starter |
 |---|---|---|
-| Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | UI shell only; provider not connected |
-| Remote audio playback | AVPlayer / AVQueuePlayer | AVPlayer foundation; requires authorized stream URL |
+| Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | Anonymous WEB_REMIX search + All/Songs/Videos/Albums/Artists/Playlists filters; metadata only, no continuation yet |
+| Remote audio playback | AVPlayer / AVQueuePlayer | AVPlayer foundation; no native stream resolver connected to catalog results yet |
 | Background playback | AVAudioSession `.playback` + iOS background audio mode | Declared; physical-device verification outstanding |
 | Lock-screen / Control Center | MPNowPlayingInfoCenter + MPRemoteCommandCenter | Basic metadata and play/pause/skip/next/previous commands |
 | Play queue / next / previous | Shared pure queue model + native player queue controller | AVPlayer queue controller foundation implemented |
 | Liked songs / playlists | SwiftData / Core Data or shared persistence adapter | Local UserDefaults JSON store; UI creates/deletes playlists |
 | Guest usage | Local guest store; no login gate for local actions | Local playlist/favorites storage foundation |
 | Login / account | Provider-approved OAuth + Keychain | Not implemented |
-| Lyrics | Provider adapters using URLSession / Ktor Darwin | Not implemented |
+| Lyrics | Provider adapters using URLSession / Ktor Darwin | Not implemented; Android provider list/model audited |
 | Translation | Provider adapter; cache and attribution | Not implemented |
 | Smart Playlists | Reuse pure filters and sorting after KMP extraction | Not implemented |
 | Listening history / statistics | Shared domain model + local persistence | Not implemented |
@@ -23,6 +23,10 @@
 | DSD / DST codecs | Port/test each decoder and license independently | Not implemented |
 | Car Mode / widgets | CarPlay / WidgetKit design and entitlement review | Not implemented |
 | Android TV / Wear OS | Separate Apple TV / watchOS products only if required | Out of current scope |
+
+## Source and license alignment
+
+The iOS repository includes the Android MusikKu repository's GPL-3.0 license and upstream attribution notice. Native Swift files that port GPL-covered behaviour remain subject to the applicable license terms. Review third-party notices and distribution obligations before releasing binaries.
 
 ## Definition of done for first iOS beta
 
