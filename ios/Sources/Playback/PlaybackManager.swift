@@ -33,12 +33,16 @@ final class PlaybackManager: ObservableObject {
     @Published private(set) var repeatMode: PlaybackRepeatMode = .off
     @Published private(set) var playbackSpeed: Double = 1.0
     @Published private(set) var sleepTimerEndDate: Date?
+    @Published private(set) var sleepTimerAfterTrack = false
+    @Published private(set) var sleepTimerFadeOutEnabled = true
     @Published private(set) var isResolving = false
     @Published private(set) var isBuffering = false
     @Published var errorMessage: String?
 
     private var currentQueueIndex: Int?
     private var sleepTimerTask: Task<Void, Never>?
+    private var sleepTimerOriginalVolume: Float = 1.0
+    private let sleepTimerFadeOutKey = "musikku.player.sleep-timer-fade-out.v1"
     private let playbackSpeedKey = "musikku.player.playback-speed.v1"
     private let repeatModeKey = "musikku.player.repeat-mode.v1"
     var currentQueueTrackIndex: Int? { currentQueueIndex }
@@ -61,6 +65,7 @@ final class PlaybackManager: ObservableObject {
     private var loadedArtwork: UIImage?
 
     init() {
+        sleepTimerFadeOutEnabled = UserDefaults.standard.object(forKey: sleepTimerFadeOutKey) as? Bool ?? true
         let savedSpeed = UserDefaults.standard.double(forKey: playbackSpeedKey)
         if Self.availablePlaybackSpeeds.contains(where: { abs($0 - savedSpeed) < 0.001 }) {
             playbackSpeed = savedSpeed
@@ -187,24 +192,46 @@ final class PlaybackManager: ObservableObject {
         updateNowPlaying()
     }
 
+    /// Android-aligned sleep timer: 5-minute steps, from 5 minutes to 12 hours.
     func setSleepTimer(minutes: Int?) {
-        sleepTimerTask?.cancel()
-        sleepTimerTask = nil
-        sleepTimerEndDate = nil
+        cancelSleepTimer()
+        guard let minutes, (5...720).contains(minutes), minutes.isMultiple(of: 5) else { return }
 
-        guard let minutes, (1...180).contains(minutes) else { return }
-        let duration = UInt64(minutes) * 60 * 1_000_000_000
-        sleepTimerEndDate = Date().addingTimeInterval(TimeInterval(minutes * 60))
+        sleepTimerAfterTrack = false
+        sleepTimerOriginalVolume = player?.volume ?? 1.0
+        let endDate = Date().addingTimeInterval(TimeInterval(minutes * 60))
+        sleepTimerEndDate = endDate
+
         sleepTimerTask = Task { [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: duration)
-            } catch {
-                return
+            while !Task.isCancelled {
+                guard let self else { return }
+                let remaining = endDate.timeIntervalSinceNow
+                guard remaining > 0 else {
+                    self.finishSleepTimer()
+                    return
+                }
+
+                self.applySleepTimerFade(remainingSeconds: remaining)
+                do {
+                    try await Task.sleep(nanoseconds: 500_000_000)
+                } catch {
+                    return
+                }
             }
-            guard !Task.isCancelled else { return }
-            self?.pause()
-            self?.sleepTimerEndDate = nil
-            self?.sleepTimerTask = nil
+        }
+    }
+
+    /// Stops at the end of the currently playing track instead of using a deadline.
+    func setSleepTimerAfterTrack() {
+        cancelSleepTimer()
+        sleepTimerAfterTrack = true
+    }
+
+    func setSleepTimerFadeOutEnabled(_ enabled: Bool) {
+        sleepTimerFadeOutEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: sleepTimerFadeOutKey)
+        if !enabled {
+            restoreSleepTimerVolume()
         }
     }
 
@@ -212,6 +239,37 @@ final class PlaybackManager: ObservableObject {
         sleepTimerTask?.cancel()
         sleepTimerTask = nil
         sleepTimerEndDate = nil
+        sleepTimerAfterTrack = false
+        restoreSleepTimerVolume()
+    }
+
+    private func applySleepTimerFade(remainingSeconds: TimeInterval) {
+        guard let player else { return }
+        guard sleepTimerFadeOutEnabled else {
+            player.volume = sleepTimerOriginalVolume
+            return
+        }
+        let fadeDuration: TimeInterval = 30
+        let multiplier: Float
+        if remainingSeconds >= fadeDuration {
+            multiplier = 1
+        } else {
+            multiplier = Float(max(0, min(1, remainingSeconds / fadeDuration)))
+        }
+        player.volume = sleepTimerOriginalVolume * multiplier
+    }
+
+    private func restoreSleepTimerVolume() {
+        player?.volume = sleepTimerOriginalVolume
+    }
+
+    private func finishSleepTimer() {
+        sleepTimerTask?.cancel()
+        sleepTimerTask = nil
+        sleepTimerEndDate = nil
+        sleepTimerAfterTrack = false
+        restoreSleepTimerVolume()
+        pause()
     }
 
     func togglePlayback() {
@@ -302,6 +360,11 @@ final class PlaybackManager: ObservableObject {
     }
 
     private func handleTrackEnded() {
+        if sleepTimerAfterTrack {
+            finishSleepTimer()
+            return
+        }
+
         guard repeatMode == .one, let player else {
             playNext()
             return
@@ -412,6 +475,7 @@ final class PlaybackManager: ObservableObject {
         let asset = AVURLAsset(url: url, options: assetOptions)
         let item = AVPlayerItem(asset: asset)
         let nextPlayer = AVPlayer(playerItem: item)
+        nextPlayer.volume = sleepTimerOriginalVolume
         player = nextPlayer
         attachTimeObserver(to: nextPlayer)
 
