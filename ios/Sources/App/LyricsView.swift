@@ -198,20 +198,20 @@ struct LyricsSheet: View {
                         fileError = nil
                     }
                 } catch {
-                    fileError = "File TTML tidak dapat dibaca: (error.localizedDescription)"
+                    fileError = "File TTML tidak dapat dibaca: \(error.localizedDescription)"
                 }
             case .failure(let error):
-                fileError = "Impor TTML dibatalkan atau gagal: (error.localizedDescription)"
+                fileError = "Impor TTML dibatalkan atau gagal: \(error.localizedDescription)"
             }
         }
         .fileExporter(
             isPresented: $isExportingTTML,
             document: exportFile,
             contentType: .musikKuTTML,
-            defaultFilename: "(Self.safeFileName(track.title))-lyrics"
+            defaultFilename: "\(Self.safeFileName(track.title))-lyrics"
         ) { result in
             if case .failure(let error) = result {
-                fileError = "Ekspor TTML gagal: (error.localizedDescription)"
+                fileError = "Ekspor TTML gagal: \(error.localizedDescription)"
             } else {
                 fileError = nil
             }

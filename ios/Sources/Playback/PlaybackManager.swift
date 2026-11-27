@@ -40,6 +40,7 @@ final class PlaybackManager: ObservableObject {
     private var currentQueueIndex: Int?
     private var sleepTimerTask: Task<Void, Never>?
     private let playbackSpeedKey = "musikku.player.playback-speed.v1"
+    private let repeatModeKey = "musikku.player.repeat-mode.v1"
     var currentQueueTrackIndex: Int? { currentQueueIndex }
     var isRepeatEnabled: Bool { repeatMode != .off }
 
@@ -63,6 +64,10 @@ final class PlaybackManager: ObservableObject {
         let savedSpeed = UserDefaults.standard.double(forKey: playbackSpeedKey)
         if Self.availablePlaybackSpeeds.contains(where: { abs($0 - savedSpeed) < 0.001 }) {
             playbackSpeed = savedSpeed
+        }
+        if let savedRepeat = UserDefaults.standard.string(forKey: repeatModeKey),
+           let mode = PlaybackRepeatMode(rawValue: savedRepeat) {
+            repeatMode = mode
         }
         configureRemoteCommands()
         configureAudioSessionNotifications()
@@ -162,11 +167,12 @@ final class PlaybackManager: ObservableObject {
 
     func toggleRepeat() {
         let nextIndex = (PlaybackRepeatMode.allCases.firstIndex(of: repeatMode) ?? -1) + 1
-        repeatMode = PlaybackRepeatMode.allCases[nextIndex % PlaybackRepeatMode.allCases.count]
+        setRepeatMode(PlaybackRepeatMode.allCases[nextIndex % PlaybackRepeatMode.allCases.count])
     }
 
     func setRepeatMode(_ mode: PlaybackRepeatMode) {
         repeatMode = mode
+        UserDefaults.standard.set(mode.rawValue, forKey: repeatModeKey)
     }
 
     func setPlaybackSpeed(_ speed: Double) {
