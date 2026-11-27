@@ -43,8 +43,7 @@ struct MiniPlayerBar: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(playback.isResolving)
-            .accessibilityLabel(playback.isPlaying ? "Jeda" : "Putar")
+            .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan audio" : (playback.isPlaying ? "Jeda" : "Putar"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -221,8 +220,7 @@ struct NowPlayingView: View {
                         .frame(width: 66, height: 66)
                         .background(MusikKuStyle.accent.gradient, in: Circle())
                 }
-                .accessibilityLabel(playback.isResolving ? "Mengambil stream" : (playback.isPlaying ? "Jeda" : "Putar"))
-                .disabled(playback.isResolving)
+                .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan audio" : (playback.isPlaying ? "Jeda" : "Putar"))
 
                 Button {
                     playback.playNext()
