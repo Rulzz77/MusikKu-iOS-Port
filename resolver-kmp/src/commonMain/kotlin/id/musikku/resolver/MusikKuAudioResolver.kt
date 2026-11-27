@@ -38,6 +38,21 @@ class MusikKuAudioResolver {
     )
 
     /**
+     * Preloads player configuration and cipher support before the first play.
+     * This reduces the cold-start work performed after the user taps a track.
+     */
+    suspend fun prewarm(
+        language: String = "id",
+        region: String = "ID"
+    ) {
+        innerTube.locale = YouTubeLocale(
+            gl = region.uppercase(),
+            hl = language.lowercase()
+        )
+        extractor.prewarm()
+    }
+
+    /**
      * Resolves a YouTube Music video ID to a direct HTTPS audio URL and the
      * request headers required by its selected playback client.
      *
