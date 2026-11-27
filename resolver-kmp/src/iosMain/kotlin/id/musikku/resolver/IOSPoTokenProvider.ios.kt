@@ -204,11 +204,15 @@ private class IOSBotGuardSession private constructor(
         evaluate(script)
         val rawBytes = withTimeout(TOKEN_TIMEOUT_MS) {
             while (true) {
-                val error = evaluate("String((window.__mkTokenErrors || {})[$keyLiteral] || '')").asText()
+                val error = evaluate(
+                    "(function () { var map = window.__mkTokenErrors || {}; var value = map[$keyLiteral] || ''; delete map[$keyLiteral]; return String(value); })()"
+                ).asText()
                 if (error.isNotBlank()) {
                     throw IllegalStateException("BotGuard could not mint a token")
                 }
-                val result = evaluate("String((window.__mkTokenResults || {})[$keyLiteral] || '')").asText()
+                val result = evaluate(
+                    "(function () { var map = window.__mkTokenResults || {}; var value = map[$keyLiteral] || ''; delete map[$keyLiteral]; return String(value); })()"
+                ).asText()
                 if (result.isNotBlank()) return@withTimeout result
                 delay(POLL_INTERVAL_MS)
             }
