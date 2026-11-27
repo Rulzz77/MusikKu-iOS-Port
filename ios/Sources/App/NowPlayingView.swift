@@ -233,14 +233,14 @@ struct NowPlayingView: View {
                     Image(
                         systemName: playback.isResolving
                             ? "xmark"
-                            : (playback.isPlaying ? "pause.fill" : "play.fill")
+                            : ((playback.isPlaying || playback.isBuffering) ? "pause.fill" : "play.fill")
                     )
                         .font(.system(size: 25, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 66, height: 66)
                         .background(MusikKuStyle.accent.gradient, in: Circle())
                 }
-                .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan audio" : (playback.isPlaying ? "Jeda" : "Putar"))
+                .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan audio" : ((playback.isPlaying || playback.isBuffering) ? "Jeda" : "Putar"))
 
                 Button {
                     playback.playNext()
