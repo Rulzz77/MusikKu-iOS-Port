@@ -156,6 +156,66 @@ jobs:
 
           echo "iOS Simulator launch smoke test passed for $BUNDLE_ID."
 
+      - name: Package iOS Simulator app for Appetize
+        run: |
+          set -euo pipefail
+
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -type d \
+            -path '*/Build/Products/Debug-iphonesimulator/MusikKu.app' -print -quit)"
+          if [[ -z "$APP_PATH" || ! -d "$APP_PATH" ]]; then
+            echo "::error::Built iOS Simulator MusikKu.app bundle was not found."
+            exit 1
+          fi
+
+          INFO_PLIST="$APP_PATH/Info.plist"
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")"
+          PLATFORM="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$INFO_PLIST")"
+          EXECUTABLE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$INFO_PLIST")"
+          EXECUTABLE="$APP_PATH/$EXECUTABLE_NAME"
+
+          if [[ "$BUNDLE_ID" != "id.musikku.ios" ]]; then
+            echo "::error::Unexpected Simulator bundle identifier: $BUNDLE_ID"
+            exit 1
+          fi
+          if [[ "$PLATFORM" != "iPhoneSimulator" ]]; then
+            echo "::error::Expected an iPhoneSimulator build, found $PLATFORM."
+            exit 1
+          fi
+          if [[ ! -f "$EXECUTABLE" ]]; then
+            echo "::error::Simulator app executable was not found."
+            exit 1
+          fi
+
+          ARCHS="$(/usr/bin/lipo -archs "$EXECUTABLE")"
+          case " $ARCHS " in
+            *" arm64 "*) ;;
+            *)
+              echo "::error::Appetize artifact must contain the arm64 Simulator architecture; found: $ARCHS"
+              exit 1
+              ;;
+          esac
+
+          STAGING="$RUNNER_TEMP/MusikKu-Appetize"
+          mkdir -p "$STAGING"
+          ditto "$APP_PATH" "$STAGING/MusikKu.app"
+          (
+            cd "$STAGING"
+            /usr/bin/zip -qry "$GITHUB_WORKSPACE/MusikKu-iOS-Simulator-Appetize.zip" MusikKu.app
+          )
+
+          /usr/bin/unzip -tq "$GITHUB_WORKSPACE/MusikKu-iOS-Simulator-Appetize.zip"
+          /usr/bin/unzip -l "$GITHUB_WORKSPACE/MusikKu-iOS-Simulator-Appetize.zip" |
+            grep -q 'MusikKu.app/Info.plist'
+          echo "Prepared Appetize Simulator build for $BUNDLE_ID ($ARCHS)."
+
+      - name: Upload iOS Simulator build for Appetize
+        uses: actions/upload-artifact@v4
+        with:
+          name: MusikKu-iOS-Simulator-Appetize
+          path: MusikKu-iOS-Simulator-Appetize.zip
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Build unsigned IPA for physical iPhone
         run: |
           set -euo pipefail

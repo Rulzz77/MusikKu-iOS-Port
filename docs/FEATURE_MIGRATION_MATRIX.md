@@ -4,7 +4,7 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 
 | Android MusikKu capability | iOS implementation | Status |
 |---|---|---|
-| Main navigation | SwiftUI Beranda / Explore / Koleksi; global Search sheet; floating material dock with mini-player | Build #136 compiled, installed and launched in Simulator; 5 automated tests passed |
+| Main navigation | SwiftUI Beranda / Explore / Koleksi; global Search sheet; floating material dock with mini-player | Build #140 compiled, installed and launched in Simulator; 5 automated tests passed. A separate Appetize Simulator ZIP is being added to the workflow for Windows browser testing |
 | Android visual language | Dark BitChord palette, lavender accent, rounded cards, artwork shelves and translucent dock | Adapted to SwiftUI; pixel-identical parity is not intended |
 | Home feed | WEB_REMIX FEmusic_home, artwork shelves, recent plays, play-count Mix and continuation paging | Implemented in source; live response/pagination needs device testing |
 | Explore / mood / genre | FEmusic_moods_and_genres, category grid, browse detail and category continuation paging | Implemented in source; parser depends on live third-party response format |
@@ -36,7 +36,7 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 
 The iOS target consumes a Kotlin Multiplatform framework built from resolver-kmp and pins InnerTubeX v0.13.2 for the iOS target only; the Android repository is not modified by this port. Ktor Darwin 3.6.0 requests direct audio streams with HLS/SABR disabled before passing the HTTPS URL and required headers to AVPlayer. InnerTubeX provides its current embedded player-config/cipher fallback and client-selection pipeline. When AVPlayer rejects a stream, the resolver records the exact profile ID, excludes it for that video for up to 10 minutes using monotonic time, and schedules a cipher-config refresh asynchronously. Both the main resolver HTTP client and the token HTTP client disable shared iOS cookie storage. Webpage Attestation parses the watch-page challenge, validates the HTTPS interpreter host/path, and executes the challenge in a non-persistent WKWebView; only the static consent preference is sent and token data remains memory-only.
 
-CI run #136 built the XCFramework, generated the Xcode project, compiled and launched the iOS Simulator app, passed 5 unit tests with 0 failures, and created/uploaded an unsigned arm64 IPA. This is compile/package validation, not evidence of live YouTube playback or physical iPhone audio functionality.
+CI run #140 built the XCFramework, generated the Xcode project, compiled and launched the iOS Simulator app, passed 5 unit tests with 0 failures, and created/uploaded an unsigned arm64 IPA. The workflow is being extended with a separate Simulator ZIP for Appetize browser testing from Windows. This is compile/package validation, not evidence of live YouTube playback or physical iPhone audio functionality.
 
 The provider is a best-effort technical integration. A successful framework build does not guarantee that YouTube's live challenge protocol or any particular stream remains compatible.
 

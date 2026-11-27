@@ -40,11 +40,11 @@ Current state: **native iOS UI with Android-aligned Beranda / Explore / Koleksi 
 
 ## Validation
 
-- [GitHub Actions run #136](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45985450447) passed at commit `0a0df46`: InnerTubeX v0.13.2 iOS XCFramework build, XcodeGen project generation, iOS Simulator compile, **5 unit tests with 0 failures**, Simulator install/launch smoke test, unsigned arm64 iPhone IPA packaging, and artifact upload.
-- Artifact: [MusikKu-iOS-unsigned-IPA](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45985450447/artifacts/15191644889), 3,575,112 bytes (about 3.58 MB), SHA-256 `e5d6e439ffd0913ff45ea480a77ba6218f1caceda2dc735a498bf1c7a157da31`; it expires 4 December 2026.
-- The CI test suite covers public Spotify playlist URL parsing (3 cases), local playlist deduplication/persistence (1 case), and Smart Playlist play-count/duration filtering (1 case).
-- Simulator compile, launch, and unsigned IPA packaging verify build/install viability. They do **not** establish live Webpage Attestation compatibility, PoToken generation, YouTube stream extraction, audible playback, or physical-device audio behaviour.
-- The physical-iPhone validation list remains outstanding: stream playback, screen-locked background playback, lock screen/Control Center, interruptions, Bluetooth/headset routing, and Wi-Fi/cellular handoff.
-- The IPA is unsigned for personal Sideloadly testing; it is not a TestFlight or App Store release build.
+- [GitHub Actions run #140](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45994974904) passed at commit `8c5ee75`: all 12 steps completed successfully, including InnerTubeX XCFramework build, XcodeGen generation, Simulator compilation, **5 unit tests with 0 failures**, Simulator install/launch smoke test, and unsigned arm64 iPhone IPA packaging.
+- [Unsigned IPA artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45994974904/artifacts/15195939027): 3,574,899 bytes; SHA-256 `799f58335fc4c48403cb7cdb927ab9540bc330a909b648759c9b56d720f10aa3`; expires 4 December 2026. It is unsigned for personal Sideloadly testing, not a TestFlight or App Store release.
+- The iOS workflow now adds a separate ARM64 Simulator `.app` ZIP artifact intended for Appetize, so the app can be previewed in a browser on Windows without a physical iPhone. The artifact will be generated and verified by the next CI run after the workflow change. See [Windows/Appetize testing instructions](docs/APPETIZE_WINDOWS_TESTING.md).
+- The CI suite covers public Spotify playlist URL parsing (3 cases), local playlist deduplication/persistence (1 case), and Smart Playlist play-count/duration filtering (1 case).
+- Simulator compilation, launch and IPA packaging verify build viability only. They do **not** establish live Webpage Attestation compatibility, PoToken generation, YouTube stream extraction, audible playback or physical-device audio behaviour.
+- Physical-iPhone validation remains outstanding: audible stream playback, screen-locked background playback, lock-screen/Control Center, interruptions, Bluetooth/headset routing and Wi-Fi/cellular handoff.
 
 Pull request: #1 — phase-1-ui-library-queue to main. The PR remains open and has not been merged.

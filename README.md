@@ -27,15 +27,15 @@ Local playlists, favorites, search history, listening stats and Smart Playlist r
 
 ## Build and validation
 
-GitHub Actions builds the InnerTubeX iOS XCFramework, generates the Xcode project, compiles for iOS Simulator, launches the app in an iPhone Simulator and exports an unsigned arm64 IPA for Sideloadly.
+GitHub Actions builds the InnerTubeX iOS XCFramework, generates the Xcode project, compiles and launches the iOS Simulator app, runs unit tests, packages a separate Simulator ZIP for Appetize, and exports an unsigned arm64 IPA for physical-iPhone testing.
 
-- [Run #136](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45985450447) succeeded at commit `0a0df46`: InnerTubeX v0.13.2 XCFramework, XcodeGen, Simulator compile and launch, **5 unit tests (0 failures)**, unsigned arm64 iPhone IPA packaging and artifact upload.
-- [Download the unsigned IPA artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45985450447/artifacts/15191644889) (3.58 MB; expires 4 December 2026).
+- [Run #140](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45994974904) succeeded at commit `8c5ee75`: all 12 workflow steps passed, including Simulator build and launch, **5 unit tests (0 failures)**, and unsigned arm64 iPhone IPA packaging.
+- [Download the unsigned IPA artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45994974904/artifacts/15195939027) (3,574,899 bytes; SHA-256 `799f58335fc4c48403cb7cdb927ab9540bc330a909b648759c9b56d720f10aa3`; expires 4 December 2026).
+- The workflow now also creates a distinct **MusikKu-iOS-Simulator-Appetize** ZIP artifact for browser-based testing from Windows. Its availability is verified by the next CI run after this workflow change. See [Test from Windows with Appetize](docs/APPETIZE_WINDOWS_TESTING.md).
 
-- An unsigned IPA is for personal device testing with Sideloadly, not an App Store/TestFlight signed release.
-- A build or Simulator launch does not verify live BotGuard challenge compatibility, PoToken generation, stream extraction or audible playback.
+The unsigned IPA is for personal device testing with Sideloadly, not an App Store/TestFlight signed release. The Appetize ZIP is an iOS Simulator build; Appetize does not accept the IPA.
 
-Actual YouTube playback, background audio, lock-screen controls and audio routing must be verified on a physical iPhone before release.
+A build or Simulator launch does not verify live Webpage Attestation challenge compatibility, PoToken generation, stream extraction or audible playback. Actual YouTube playback, background audio, lock-screen controls and audio routing must be verified on a physical iPhone before release.
 
 ## Requirements for local build
 
