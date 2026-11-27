@@ -38,9 +38,10 @@ Still not integrated or not fully verified:
 The resolver uses InnerTubeX `v0.7.0`, matching Android's pinned dependency. It requests direct audio transport because AVPlayer cannot consume the Android/SABR segmented path directly. The iOS PoToken provider uses an isolated non-persistent WebKit data store and does not use Google account cookies. The provider is a best-effort technical integration, not a guarantee that every YouTube item will be playable.
 
 Validation:
-- GitHub Actions iOS Simulator build passed at commit `624ffe1` (`624ffe1379fb5f17c19a9a77e3b680af34e3afc2`). All three core steps passed: InnerTubeX iOS XCFramework build, XcodeGen project generation, and iOS Simulator compile.
-- The passing CI includes the WKWebView BotGuard provider, Ktor Darwin request path, non-persistent WebKit data store, and the recent token-result cleanup.
-- CI compilation does not execute the app or verify live BotGuard challenge compatibility, PoToken generation, YouTube stream extraction, or audible playback. End-to-end playback still needs runtime and physical-device testing.
+- GitHub Actions passed at commit `b0a5aebd5c2e2dcc5542044c4b6c7dfd1acd87f9`: InnerTubeX iOS XCFramework build, XcodeGen project generation, iOS Simulator compile, and an install/launch smoke test on an available iPhone Simulator.
+- The smoke test installed bundle `id.musikku.ios`, launched the app, and confirmed its process remained alive for the 10-second check.
+- QuickJS was upgraded to `1.0.18` (with Kotlin Multiplatform `2.4.21` and Gradle `9.8.2`). The earlier QuickJS simulator linker warnings are gone; the remaining App Intents metadata-skip warning is expected because this app does not depend on `AppIntents.framework`.
+- CI install/launch validation does not verify live BotGuard challenge compatibility, PoToken generation, YouTube stream extraction, or audible playback. Those still require runtime testing with a real playback request.
 - Physical-iPhone playback, background audio, audio routing, and lock-screen tests remain outstanding.
 
 
