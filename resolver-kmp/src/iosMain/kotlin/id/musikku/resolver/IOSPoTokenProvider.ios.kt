@@ -18,6 +18,9 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -107,6 +110,13 @@ private class IOSPoTokenProvider : TokenProvider {
                         streamingDataToken = videoToken,
                         visitorData = visitorData
                     )
+                } catch (error: TimeoutCancellationException) {
+                    // A provider-owned stage timeout must become an ordinary resolution error
+                    // so InnerTubeX can use its fallback clients. Preserve cancellation when
+                    // the timeout actually came from the calling extraction coroutine.
+                    if (!currentCoroutineContext().isActive) throw error
+                    clearSession()
+                    throw IllegalStateException("iOS BotGuard operation timed out", error)
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Throwable) {
