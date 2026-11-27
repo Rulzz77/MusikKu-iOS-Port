@@ -270,9 +270,11 @@ actor LyricsService {
 
     private static func identity(_ value: String) -> String {
         let folded = value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-        let scalars = folded.unicodeScalars.map { CharacterSet.alphanumerics.contains($0) ? Character($0) : " " }
-        return String(scalars)
-            .split(whereSeparator: \.isWhitespace)
+        let pieces = folded.unicodeScalars.map { scalar in
+            CharacterSet.alphanumerics.contains(scalar) ? String(scalar) : " "
+        }
+        return pieces.joined()
+            .split(whereSeparator: { $0.isWhitespace })
             .joined(separator: " ")
     }
 
