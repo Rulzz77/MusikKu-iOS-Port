@@ -40,7 +40,7 @@ final class PlaybackManager: ObservableObject {
         // This is best-effort: playback can still attempt resolution if warm-up fails.
         Task { [weak self] in
             guard let self else { return }
-            await self.streamResolver.prewarm(language: "id", region: "ID")
+            try? await self.streamResolver.prewarm(language: "id", region: "ID")
         }
     }
 
