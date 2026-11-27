@@ -35,8 +35,21 @@ actor MusicCatalogService {
     private let musicOrigin = "https://music.youtube.com"
     private let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
 
-    init(session: URLSession = .shared) {
-        self.session = session
+    init(session: URLSession? = nil) {
+        self.session = session ?? Self.makeAnonymousSession()
+    }
+
+    /// Uses an isolated in-memory session: no shared cookie storage or shared response cache.
+    private static func makeAnonymousSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        configuration.timeoutIntervalForRequest = 25
+        configuration.timeoutIntervalForResource = 60
+        configuration.httpMaximumConnectionsPerHost = 4
+        return URLSession(configuration: configuration)
     }
 
     func searchPage(query rawQuery: String, filter: CatalogSearchFilter) async throws -> CatalogSearchPage {
