@@ -184,6 +184,13 @@ struct LibraryView: View {
                             TrackLibraryRow(track: track)
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button {
+                                playback.enqueue(track)
+                            } label: {
+                                Label("Tambah ke antrean", systemImage: "text.badge.plus")
+                            }
+                        }
 
                         Spacer(minLength: 4)
 
@@ -541,6 +548,13 @@ private struct PlaylistDetailView: View {
                                 TrackLibraryRow(track: track)
                             }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button {
+                                    playback.enqueue(track)
+                                } label: {
+                                    Label("Tambah ke antrean", systemImage: "text.badge.plus")
+                                }
+                            }
                             .listRowBackground(MusikKuStyle.surface)
                             .swipeActions {
                                 Button(role: .destructive) {

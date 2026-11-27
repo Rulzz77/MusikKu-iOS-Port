@@ -782,6 +782,13 @@ struct CatalogBrowseDetailSheet: View {
                             }
                             .padding(9)
                             .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 13))
+                            .contextMenu {
+                                Button {
+                                    playback.enqueue(track.asMusicTrack())
+                                } label: {
+                                    Label("Tambah ke antrean", systemImage: "text.badge.plus")
+                                }
+                            }
                             .onAppear {
                                 if index >= page.tracks.count - 5 {
                                     Task { await loadMorePage() }
