@@ -2,6 +2,7 @@ import AVFoundation
 import Combine
 import MediaPlayer
 import UIKit
+import MusikKuResolverKit
 
 @MainActor
 final class PlaybackManager: ObservableObject {
@@ -12,6 +13,7 @@ final class PlaybackManager: ObservableObject {
     @Published private(set) var queue: [MusicTrack] = []
     @Published private(set) var isShuffleEnabled = false
     @Published private(set) var isRepeatEnabled = false
+    @Published private(set) var isResolving = false
     @Published var errorMessage: String?
 
     private var currentQueueIndex: Int?
@@ -24,6 +26,8 @@ final class PlaybackManager: ObservableObject {
     private var notificationObservers: [NSObjectProtocol] = []
     private var itemStatusObservation: NSKeyValueObservation?
     private var shouldResumeAfterInterruption = false
+    private var resolveTask: Task<Void, Never>?
+    private let streamResolver = MusikKuAudioResolver()
     private var artworkTask: Task<Void, Never>?
     private var loadedArtworkURL: URL?
     private var loadedArtwork: UIImage?
@@ -43,6 +47,9 @@ final class PlaybackManager: ObservableObject {
         guard !tracks.isEmpty else {
             queue = []
             currentQueueIndex = nil
+            resolveTask?.cancel()
+            resolveTask = nil
+            isResolving = false
             player?.pause()
             detachPlaybackObservers()
             player = nil
@@ -179,6 +186,9 @@ final class PlaybackManager: ObservableObject {
     }
 
     private func startTrack(_ track: MusicTrack) {
+        resolveTask?.cancel()
+        resolveTask = nil
+        isResolving = false
         player?.pause()
         detachPlaybackObservers()
         player = nil
@@ -187,6 +197,7 @@ final class PlaybackManager: ObservableObject {
         currentTrack = track
         position = 0
         duration = 0
+        errorMessage = nil
 
         if loadedArtworkURL != track.artworkURL {
             artworkTask?.cancel()
@@ -195,15 +206,64 @@ final class PlaybackManager: ObservableObject {
             loadedArtwork = nil
         }
 
-        guard let url = track.streamURL,
-              let scheme = url.scheme?.lowercased(),
-              scheme == "https" || scheme == "http" else {
-            isPlaying = false
-            errorMessage = "Track ini belum memiliki URL streaming yang valid dari penyedia musik."
+        if let url = track.streamURL,
+           let scheme = url.scheme?.lowercased(),
+           scheme == "https" || scheme == "http" {
+            startPlayer(track: track, url: url, headers: [:])
+            return
+        }
+
+        guard let videoID = track.youtubeVideoID else {
+            errorMessage = "Lagu ini belum memiliki ID video untuk mengambil stream audio."
             updateNowPlaying()
             return
         }
 
+        isResolving = true
+        updateNowPlaying()
+        resolveTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                guard let resolved = try await self.streamResolver.resolve(
+                    videoId: videoID,
+                    language: "id",
+                    region: "ID",
+                    quality: "high"
+                ) else {
+                    throw NSError(
+                        domain: "MusikKuAudioResolver",
+                        code: 404,
+                        userInfo: [NSLocalizedDescriptionKey: "Penyedia tidak memberikan stream audio untuk lagu ini."]
+                    )
+                }
+
+                guard !Task.isCancelled, self.currentTrack?.id == track.id else { return }
+                guard let url = URL(string: resolved.url),
+                      url.scheme?.lowercased() == "https" else {
+                    throw NSError(
+                        domain: "MusikKuAudioResolver",
+                        code: 422,
+                        userInfo: [NSLocalizedDescriptionKey: "Alamat stream audio tidak valid."]
+                    )
+                }
+
+                let headerData = Data(resolved.headersJson.utf8)
+                let headers = (try? JSONSerialization.jsonObject(with: headerData)) as? [String: String] ?? [:]
+                self.resolveTask = nil
+                self.isResolving = false
+                self.startPlayer(track: track, url: url, headers: headers)
+            } catch {
+                guard !Task.isCancelled, self.currentTrack?.id == track.id else { return }
+                self.resolveTask = nil
+                self.isResolving = false
+                self.isPlaying = false
+                self.errorMessage = "Gagal mengambil stream audio: \(error.localizedDescription)"
+                self.updateNowPlaying()
+            }
+        }
+    }
+
+    private func startPlayer(track: MusicTrack, url: URL, headers: [String: String]) {
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
@@ -216,7 +276,11 @@ final class PlaybackManager: ObservableObject {
         }
 
         errorMessage = nil
-        let item = AVPlayerItem(url: url)
+        let assetOptions: [String: Any]? = headers.isEmpty
+            ? nil
+            : ["AVURLAssetHTTPHeaderFieldsKey": headers]
+        let asset = AVURLAsset(url: url, options: assetOptions)
+        let item = AVPlayerItem(asset: asset)
         let nextPlayer = AVPlayer(playerItem: item)
         player = nextPlayer
         attachTimeObserver(to: nextPlayer)

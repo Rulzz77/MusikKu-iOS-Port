@@ -9,6 +9,7 @@ struct MusicTrack: Identifiable, Codable, Hashable {
     var artworkURL: URL?
     var streamURL: URL?
     var durationSeconds: Int?
+    var youtubeVideoID: String?
 
     init(
         id: String,
@@ -17,7 +18,8 @@ struct MusicTrack: Identifiable, Codable, Hashable {
         album: String? = nil,
         artworkURL: URL? = nil,
         streamURL: URL? = nil,
-        durationSeconds: Int? = nil
+        durationSeconds: Int? = nil,
+        youtubeVideoID: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -26,5 +28,6 @@ struct MusicTrack: Identifiable, Codable, Hashable {
         self.artworkURL = artworkURL
         self.streamURL = streamURL
         self.durationSeconds = durationSeconds
+        self.youtubeVideoID = youtubeVideoID
     }
 }

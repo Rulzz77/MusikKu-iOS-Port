@@ -3,14 +3,14 @@
 | Android MusikKu capability | iOS direction | Status in this starter |
 |---|---|---|
 | Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | Anonymous WEB_REMIX search filters, first-page FEmusic_home shelves, first-page album/artist/playlist browse details, and local save-to-playlist/favorites; metadata only, no paging yet |
-| Remote audio playback | AVPlayer / AVQueuePlayer | AVPlayer foundation; no native stream resolver connected to catalog results yet |
+| Remote audio playback | AVPlayer / AVQueuePlayer + InnerTubeX KMP | First iOS resolver integration added; direct HTTPS audio only; PoToken/attestation not yet ported; CI pending |
 | Background playback | AVAudioSession `.playback` + iOS background audio mode | Declared; physical-device verification outstanding |
 | Lock-screen / Control Center | MPNowPlayingInfoCenter + MPRemoteCommandCenter | Basic metadata and play/pause/skip/next/previous commands |
 | Play queue / next / previous | Shared pure queue model + native player queue controller | AVPlayer queue controller foundation implemented |
 | Liked songs / playlists | SwiftData / Core Data or shared persistence adapter | Local UserDefaults JSON store; UI creates/deletes playlists |
 | Guest usage | Local guest store; no login gate for local actions | Local playlist/favorites storage foundation |
 | Login / account | Provider-approved OAuth + Keychain | Not implemented |
-| Lyrics | Provider adapters using URLSession / Ktor Darwin | Not implemented; Android provider list/model audited |
+| Lyrics | Native TTML/LRC providers + synchronized text renderer | lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato, LRCLIB; line/word/syllable TTML timing; translation pending |
 | Translation | Provider adapter; cache and attribution | Not implemented |
 | Smart Playlists | Reuse pure filters and sorting after KMP extraction | Not implemented |
 | Listening history / statistics | Shared domain model + local persistence | Not implemented |
@@ -24,9 +24,9 @@
 | Car Mode / widgets | CarPlay / WidgetKit design and entitlement review | Not implemented |
 | Android TV / Wear OS | Separate Apple TV / watchOS products only if required | Out of current scope |
 
-## Source and license alignment
+## Resolver architecture
 
-The iOS repository includes the Android MusikKu repository's GPL-3.0 license and upstream attribution notice. Native Swift files that port GPL-covered behaviour remain subject to the applicable license terms. Review third-party notices and distribution obligations before releasing binaries.
+The iOS target consumes a small Kotlin Multiplatform framework built from `resolver-kmp`. It pins InnerTubeX `v0.7.0`, matching the Android repository. The iOS adapter uses Ktor Darwin and requests direct audio streams with HLS/SABR disabled before passing the HTTPS URL and request headers to AVPlayer. iOS PoToken/browser attestation and authenticated account sessions are not yet implemented.
 
 ## Source and license alignment
 

@@ -206,10 +206,10 @@ struct HomeView: View {
 
                 Spacer()
 
-                Text(playback.isPlaying ? "SEDANG DIPUTAR" : "SIAP")
+                Text(playback.isResolving ? "MENGAMBIL STREAM" : (playback.isPlaying ? "SEDANG DIPUTAR" : "SIAP"))
                     .font(.system(size: 9, weight: .bold))
                     .tracking(0.6)
-                    .foregroundStyle(playback.isPlaying ? .green : MusikKuStyle.secondary)
+                    .foregroundStyle(playback.isResolving ? MusikKuStyle.accent : (playback.isPlaying ? .green : MusikKuStyle.secondary))
             }
 
             HStack(spacing: 13) {
@@ -253,13 +253,22 @@ struct HomeView: View {
                 .foregroundStyle(MusikKuStyle.secondary)
             }
 
+            if playback.isResolving {
+                HStack(spacing: 8) {
+                    ProgressView().tint(MusikKuStyle.accent)
+                    Text("Mengambil stream audio…")
+                        .font(.caption)
+                        .foregroundStyle(MusikKuStyle.secondary)
+                }
+            }
+
             HStack(spacing: 30) {
                 Button {
                     playback.playPrevious()
                 } label: {
                     Image(systemName: "backward.end.fill").font(.title3)
                 }
-                .disabled(playback.currentTrack == nil)
+                .disabled(playback.currentTrack == nil || playback.isResolving)
 
                 Button {
                     playback.togglePlayback()
@@ -271,7 +280,8 @@ struct HomeView: View {
                         .background(MusikKuStyle.accent.gradient, in: Circle())
                 }
                 .disabled(playback.currentTrack == nil)
-                .accessibilityLabel(playback.isPlaying ? "Jeda" : "Putar")
+                .accessibilityLabel(playback.isResolving ? "Mengambil stream" : (playback.isPlaying ? "Jeda" : "Putar"))
+                .disabled(playback.isResolving)
 
                 Button {
                     playback.playNext()

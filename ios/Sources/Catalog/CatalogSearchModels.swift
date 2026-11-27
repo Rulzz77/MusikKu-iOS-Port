@@ -76,7 +76,8 @@ struct CatalogItem: Identifiable, Hashable {
             album: albumName,
             artworkURL: artworkURL,
             streamURL: nil,
-            durationSeconds: durationSeconds
+            durationSeconds: durationSeconds,
+            youtubeVideoID: canSaveAsTrack ? id : nil
         )
     }
 }

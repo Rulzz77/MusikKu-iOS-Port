@@ -20,6 +20,9 @@ targets:
       - path: Sources
     info:
       path: Support/Info.plist
+    dependencies:
+      - framework: ../resolver-kmp/build/XCFrameworks/release/MusikKuResolverKit.xcframework
+        embed: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: id.musikku.ios

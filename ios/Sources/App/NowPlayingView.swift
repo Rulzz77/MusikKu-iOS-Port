@@ -31,12 +31,19 @@ struct MiniPlayerBar: View {
             Button {
                 playback.togglePlayback()
             } label: {
-                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.title3.bold())
-                    .frame(width: 42, height: 42)
-                    .contentShape(Rectangle())
+                Group {
+                    if playback.isResolving {
+                        ProgressView().tint(MusikKuStyle.accent)
+                    } else {
+                        Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.title3.bold())
+                    }
+                }
+                .frame(width: 42, height: 42)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .disabled(playback.isResolving)
             .accessibilityLabel(playback.isPlaying ? "Jeda" : "Putar")
         }
         .padding(.horizontal, 12)
@@ -156,6 +163,16 @@ struct NowPlayingView: View {
                 .accessibilityLabel(library.isFavorite(track) ? "Hapus dari lagu disukai" : "Tambahkan ke lagu disukai")
             }
 
+            if playback.isResolving {
+                HStack(spacing: 9) {
+                    ProgressView().tint(MusikKuStyle.accent)
+                    Text("Mengambil stream audio…")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(MusikKuStyle.secondary)
+                    Spacer()
+                }
+            }
+
             VStack(spacing: 5) {
                 Slider(
                     value: Binding(
@@ -164,7 +181,7 @@ struct NowPlayingView: View {
                     ),
                     in: 0...max(playback.duration, 1)
                 )
-                .disabled(playback.duration <= 0)
+                .disabled(playback.duration <= 0 || playback.isResolving)
 
                 HStack {
                     Text(Self.time(playback.position))
@@ -193,6 +210,7 @@ struct NowPlayingView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .accessibilityLabel("Lagu sebelumnya")
+                .disabled(playback.isResolving)
 
                 Button {
                     playback.togglePlayback()
@@ -203,7 +221,8 @@ struct NowPlayingView: View {
                         .frame(width: 66, height: 66)
                         .background(MusikKuStyle.accent.gradient, in: Circle())
                 }
-                .accessibilityLabel(playback.isPlaying ? "Jeda" : "Putar")
+                .accessibilityLabel(playback.isResolving ? "Mengambil stream" : (playback.isPlaying ? "Jeda" : "Putar"))
+                .disabled(playback.isResolving)
 
                 Button {
                     playback.playNext()
@@ -213,6 +232,7 @@ struct NowPlayingView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .accessibilityLabel("Lagu berikutnya")
+                .disabled(playback.isResolving)
 
                 Button {
                     playback.toggleRepeat()

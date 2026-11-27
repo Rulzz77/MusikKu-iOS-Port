@@ -16,8 +16,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Set up Java for Kotlin Multiplatform
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Gradle and XcodeGen
+        run: brew install gradle xcodegen
+
+      - name: Build InnerTubeX iOS XCFramework
+        run: gradle --no-daemon --stacktrace :resolver-kmp:assembleMusikKuResolverKitReleaseXCFramework
 
       - name: Generate Xcode project
         run: xcodegen generate --spec ios/project.yml --project ios
