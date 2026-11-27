@@ -103,7 +103,7 @@ class MusikKuAudioResolver {
         require(url.startsWith("https://", ignoreCase = true)) {
             "The resolver did not return a secure HTTPS audio URL"
         }
-        require(stream.mimeType.startsWith("audio/mp4", ignoreCase = true)) {
+        require(stream.mimeType?.startsWith("audio/mp4", ignoreCase = true) == true) {
             "The selected stream is not an AVPlayer-compatible MP4 audio stream."
         }
 
