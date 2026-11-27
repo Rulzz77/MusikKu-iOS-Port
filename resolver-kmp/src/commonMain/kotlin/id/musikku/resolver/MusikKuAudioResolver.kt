@@ -7,12 +7,16 @@ import com.metrolist.innertubex.cipher.YouTubeCipherService
 import com.metrolist.innertubex.extraction.AudioQuality
 import com.metrolist.innertubex.extraction.ContentHints
 import com.metrolist.innertubex.extraction.InnerTubeExtractor
+import com.metrolist.innertubex.extraction.YtConfigParser
 import com.metrolist.innertubex.extraction.YtConfigParserImpl
 import com.metrolist.innertubex.extraction.generateClientPlaybackNonce
 import com.metrolist.innertubex.models.YouTubeLocale
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
 
 /**
  * Audio-only resolver shared with the Android MusikKu implementation through
@@ -33,6 +37,9 @@ class MusikKuAudioResolver {
     )
     private val cipherService = YouTubeCipherService(httpClient, configStore)
     private val configParser = YtConfigParserImpl(httpClient, innerTube, configStore)
+        .withEmbeddedConfigFallback()
+    private val failedClientMutex = Mutex()
+    private val failedStreamClients = mutableMapOf<String, FailedStreamClients>()
     private val tokenProvider = createPlatformTokenProvider()
     private val extractor = InnerTubeExtractor(
         configParser = configParser,
@@ -94,9 +101,11 @@ class MusikKuAudioResolver {
             allowBoundedRange = true
         )
 
+        val excludedClients = failedStreamClients(videoId)
         val stream = extractor.extract(
             videoId = videoId,
             hints = hints,
+            excludedClients = excludedClients,
             audioQuality = audioQuality,
             clientPlaybackNonce = generateClientPlaybackNonce()
         ) ?: return null
@@ -120,6 +129,44 @@ class MusikKuAudioResolver {
         )
     }
 
+    /** Exclude a client after AVPlayer rejects its media URL so a retry can try another client. */
+    @Throws(Exception::class)
+    suspend fun markStreamClientFailed(videoId: String, clientName: String) {
+        require(videoId.matches(Regex("^[A-Za-z0-9_-]{11}$"))) { "Invalid YouTube video ID" }
+        val safeClientName = clientName.trim()
+        require(safeClientName.isNotEmpty() && safeClientName.length <= 128) { "Invalid stream client name" }
+
+        failedClientMutex.withLock {
+            val now = Clock.System.now().toEpochMilliseconds()
+            val existing = failedStreamClients[videoId]
+                ?.takeIf { now - it.failedAtMs in 0L until STREAM_CLIENT_FAILURE_TTL_MS }
+            failedStreamClients[videoId] = FailedStreamClients(
+                clients = existing?.clients.orEmpty() + safeClientName,
+                failedAtMs = now
+            )
+
+            if (failedStreamClients.size > MAX_FAILED_STREAM_ENTRIES) {
+                failedStreamClients.entries.removeAll {
+                    now - it.value.failedAtMs !in 0L until STREAM_CLIENT_FAILURE_TTL_MS
+                }
+                while (failedStreamClients.size > MAX_FAILED_STREAM_ENTRIES) {
+                    failedStreamClients.remove(failedStreamClients.keys.first())
+                }
+            }
+        }
+    }
+
+    private suspend fun failedStreamClients(videoId: String): Set<String> = failedClientMutex.withLock {
+        val now = Clock.System.now().toEpochMilliseconds()
+        val entry = failedStreamClients[videoId] ?: return@withLock emptySet()
+        if (now - entry.failedAtMs !in 0L until STREAM_CLIENT_FAILURE_TTL_MS) {
+            failedStreamClients.remove(videoId)
+            emptySet()
+        } else {
+            entry.clients
+        }
+    }
+
     fun close() {
         innerTube.close()
         httpClient.close()
@@ -132,6 +179,24 @@ class MusikKuAudioResolver {
         close()
     }
 }
+
+private data class FailedStreamClients(
+    val clients: Set<String>,
+    val failedAtMs: Long
+)
+
+private const val STREAM_CLIENT_FAILURE_TTL_MS = 5 * 60 * 1000L
+private const val MAX_FAILED_STREAM_ENTRIES = 256
+
+/** Mirrors the Android resolver: use embedded player config if the remote config fetch fails. */
+private fun YtConfigParser.withEmbeddedConfigFallback(): YtConfigParser =
+    object : YtConfigParser by this {
+        override suspend fun fetchConfig(videoId: String, useLoginCookies: Boolean) = try {
+            this@withEmbeddedConfigFallback.fetchConfig(videoId, useLoginCookies)
+        } catch (_: IllegalStateException) {
+            this@withEmbeddedConfigFallback.fetchEmbeddedConfig(videoId, useLoginCookies = false)
+        }
+    }
 
 data class ResolvedAudioStream(
     val url: String,

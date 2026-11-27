@@ -60,6 +60,7 @@ final class PlaybackManager: ObservableObject {
     private var timeControlObservation: NSKeyValueObservation?
     private var shouldResumeAfterInterruption = false
     private var resolveTask: Task<Void, Never>?
+    private var resolvedStreamClient: String?
     private let streamResolver = MusikKuAudioResolver()
     private var artworkTask: Task<Void, Never>?
     private var loadedArtworkURL: URL?
@@ -410,6 +411,7 @@ final class PlaybackManager: ObservableObject {
 
         currentTrack = track
         pendingPlaybackStartTrackID = track.id
+        resolvedStreamClient = nil
         isBuffering = false
         position = 0
         duration = 0
@@ -464,6 +466,7 @@ final class PlaybackManager: ObservableObject {
 
                 let headerData = Data(resolved.headersJson.utf8)
                 let headers = (try? JSONSerialization.jsonObject(with: headerData)) as? [String: String] ?? [:]
+                self.resolvedStreamClient = resolved.clientName
                 self.resolveTask = nil
                 self.isResolving = false
                 self.startPlayer(track: track, url: url, headers: headers)
@@ -517,11 +520,17 @@ final class PlaybackManager: ObservableObject {
             guard observedItem.status == .failed else { return }
             let message = observedItem.error?.localizedDescription ?? "Sumber audio tidak dapat diputar."
             Task { @MainActor in
-                guard let self,
-                      self.player?.currentItem === observedItem,
-                      self.currentTrack?.id == track.id else {
-                    return
+                guard let self else { return }
+                if let failedClient = self.resolvedStreamClient,
+                   let videoID = track.youtubeVideoID {
+                    self.resolvedStreamClient = nil
+                    try? await self.streamResolver.markStreamClientFailed(
+                        videoId: videoID,
+                        clientName: failedClient
+                    )
                 }
+                guard self.player?.currentItem === observedItem,
+                      self.currentTrack?.id == track.id else { return }
                 self.errorMessage = "Pemutaran gagal: \(message)"
                 self.isPlaying = false
                 self.isBuffering = false
