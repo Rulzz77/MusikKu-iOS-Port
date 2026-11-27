@@ -32,12 +32,12 @@ struct MiniPlayerBar: View {
                 playback.togglePlayback()
             } label: {
                 Group {
-                    if playback.isResolving {
-                        ProgressView().tint(MusikKuStyle.accent)
-                    } else {
-                        Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.title3.bold())
-                    }
+                    Image(
+                        systemName: playback.isResolving
+                            ? "xmark"
+                            : (playback.isPlaying ? "pause.fill" : "play.fill")
+                    )
+                        .font(.title3.bold())
                 }
                 .frame(width: 42, height: 42)
                 .contentShape(Rectangle())
@@ -214,7 +214,11 @@ struct NowPlayingView: View {
                 Button {
                     playback.togglePlayback()
                 } label: {
-                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                    Image(
+                        systemName: playback.isResolving
+                            ? "xmark"
+                            : (playback.isPlaying ? "pause.fill" : "play.fill")
+                    )
                         .font(.system(size: 25, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 66, height: 66)
