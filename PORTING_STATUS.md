@@ -20,6 +20,7 @@ Implemented in the current development branch:
 - Client playback nonce generation for each stream extraction request.
 - Best-effort resolver prewarm at player initialization to load player config and cipher support before the first play tap.
 - UI state for stream-resolution progress and resolver errors.
+- Catalog playback controls now hand songs/videos from Search and Home shelves into the AVPlayer queue; browse pages provide play-per-track and play-all actions.
 - Upstream GPL-3.0 license and third-party notices copied into this derivative repository.
 
 Still not integrated or not fully verified:
@@ -37,5 +38,5 @@ The resolver uses InnerTubeX `v0.7.0`, matching Android's pinned dependency. It 
 Validation:
 - GitHub Actions iOS Simulator build passed at commit `1b4939e` (KMP XCFramework build, XcodeGen project generation, and Xcode simulator build).
 - Persistent player-config caching, playback nonce, and startup prewarm were added after that passing build; their follow-up CI runs are in progress.
-- A successful simulator compile does not verify live YouTube stream extraction or audible playback.
+- A successful simulator compile does not verify live YouTube stream extraction or audible playback. Catalog-to-player actions are wired in the UI, but end-to-end playback is still awaiting a real iOS device test.
 - Physical-iPhone playback, background audio, audio routing, and lock-screen tests remain outstanding.
