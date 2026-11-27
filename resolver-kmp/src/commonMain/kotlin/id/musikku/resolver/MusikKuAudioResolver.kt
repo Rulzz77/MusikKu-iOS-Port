@@ -78,10 +78,12 @@ class MusikKuAudioResolver {
             hl = language.lowercase()
         )
 
+        // AVPlayer is most reliable with YouTube's audio/mp4 (M4A/AAC)
+        // representation. InnerTubeX HIGH may prefer audio/webm/Opus, so use
+        // its MP4 selector for the normal and automatic iOS quality modes.
         val audioQuality = when (quality.lowercase()) {
             "low" -> AudioQuality.LOW
-            "auto" -> AudioQuality.AUTO
-            else -> AudioQuality.HIGH
+            else -> AudioQuality.MP4
         }
 
         val hints = ContentHints(wantVideo = false).withStreamCapabilities(
@@ -100,6 +102,9 @@ class MusikKuAudioResolver {
         val url = stream.audioUrl
         require(url.startsWith("https://", ignoreCase = true)) {
             "The resolver did not return a secure HTTPS audio URL"
+        }
+        require(stream.mimeType.startsWith("audio/mp4", ignoreCase = true)) {
+            "The selected stream is not an AVPlayer-compatible MP4 audio stream."
         }
 
         return ResolvedAudioStream(
