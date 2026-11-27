@@ -134,7 +134,8 @@ actor LyricsService {
         let target = targetLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !target.isEmpty, !document.lines.isEmpty else { return nil }
 
-        let cacheKey = "\(trackID)|\(target)"
+        let lyricsSignature = document.lines.map(\.text).joined(separator: "\u{0000}")
+        let cacheKey = "\(trackID)|\(target)|\(lyricsSignature)"
         if let cached = translationCache[cacheKey] {
             return cached
         }

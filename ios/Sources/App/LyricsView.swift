@@ -1,3 +1,5 @@
+import SwiftUI
+
 private struct LyricsTranslationTarget: Identifiable, Hashable {
     let code: String
     let title: String
@@ -17,8 +19,6 @@ private struct LyricsTranslationTarget: Identifiable, Hashable {
         .init(code: "de", title: "Deutsch")
     ]
 }
-
-import SwiftUI
 
 struct LyricsSheet: View {
     @EnvironmentObject private var playback: PlaybackManager
@@ -90,8 +90,10 @@ struct LyricsSheet: View {
                         }
                         .disabled(document == nil || isTranslating)
                         if showingTranslation {
-                            Button("Tampilkan lirik asli", systemImage: "text.alignleft") {
+                            Button {
                                 showingTranslation = false
+                            } label: {
+                                Label("Tampilkan lirik asli", systemImage: "text.alignleft")
                             }
                         }
                     } label: {
@@ -139,7 +141,7 @@ struct LyricsSheet: View {
             .padding(.top, 12)
 
             if showingTranslation {
-                Text("Terjemahan otomatis • periksa kembali hasilnya bila ada istilah atau nama khusus.")
+                Text("Teks lirik dikirim ke layanan terjemahan pihak ketiga. Periksa kembali istilah dan nama khusus.")
                     .font(.caption2)
                     .foregroundStyle(MusikKuStyle.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
