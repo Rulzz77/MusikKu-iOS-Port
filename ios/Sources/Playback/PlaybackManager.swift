@@ -14,6 +14,7 @@ final class PlaybackManager: ObservableObject {
     @Published private(set) var isShuffleEnabled = false
     @Published private(set) var isRepeatEnabled = false
     @Published private(set) var isResolving = false
+    @Published private(set) var isBuffering = false
     @Published var errorMessage: String?
 
     private var currentQueueIndex: Int?
@@ -25,6 +26,7 @@ final class PlaybackManager: ObservableObject {
     private var endObserver: NSObjectProtocol?
     private var notificationObservers: [NSObjectProtocol] = []
     private var itemStatusObservation: NSKeyValueObservation?
+    private var timeControlObservation: NSKeyValueObservation?
     private var shouldResumeAfterInterruption = false
     private var resolveTask: Task<Void, Never>?
     private let streamResolver = MusikKuAudioResolver()
@@ -62,6 +64,7 @@ final class PlaybackManager: ObservableObject {
             player = nil
             currentTrack = nil
             isPlaying = false
+            isBuffering = false
             position = 0
             duration = 0
             updateNowPlaying()
@@ -117,13 +120,26 @@ final class PlaybackManager: ObservableObject {
     }
 
     func pause() {
+        // A headset or lock-screen pause must also stop a stream that is still resolving.
+        if isResolving {
+            resolveTask?.cancel()
+            resolveTask = nil
+            isResolving = false
+        }
         player?.pause()
         isPlaying = false
+        isBuffering = false
         updateNowPlaying()
     }
 
     func resume() {
-        guard let player else { return }
+        guard let player else {
+            // Re-resolve the current track when playback was paused before AVPlayer existed.
+            if currentTrack != nil, !isResolving {
+                startTrack(currentTrack!)
+            }
+            return
+        }
         do {
             try AVAudioSession.sharedInstance().setActive(true)
             player.play()
@@ -202,6 +218,7 @@ final class PlaybackManager: ObservableObject {
         isPlaying = false
 
         currentTrack = track
+        isBuffering = false
         position = 0
         duration = 0
         errorMessage = nil
@@ -305,9 +322,39 @@ final class PlaybackManager: ObservableObject {
             guard observedItem.status == .failed else { return }
             let message = observedItem.error?.localizedDescription ?? "Sumber audio tidak dapat diputar."
             Task { @MainActor in
-                self?.errorMessage = "Pemutaran gagal: \(message)"
-                self?.isPlaying = false
-                self?.updateNowPlaying()
+                guard let self,
+                      self.player?.currentItem === observedItem,
+                      self.currentTrack?.id == track.id else {
+                    return
+                }
+                self.errorMessage = "Pemutaran gagal: \(message)"
+                self.isPlaying = false
+                self.isBuffering = false
+                self.player?.pause()
+                self.updateNowPlaying()
+            }
+        }
+
+        // Distinguish an active playback request from actual network buffering.
+        // Keep the pause intent visible while AVPlayer waits for bytes to arrive.
+        timeControlObservation = nextPlayer.observe(\.timeControlStatus, options: [.new]) { [weak self, weak nextPlayer] observedPlayer, _ in
+            guard let nextPlayer else { return }
+            let status = observedPlayer.timeControlStatus
+            Task { @MainActor in
+                guard let self, self.player === nextPlayer else { return }
+                switch status {
+                case .playing:
+                    self.isPlaying = true
+                    self.isBuffering = false
+                case .waitingToPlayAtSpecifiedRate:
+                    self.isBuffering = true
+                case .paused:
+                    self.isPlaying = false
+                    self.isBuffering = false
+                @unknown default:
+                    self.isBuffering = false
+                }
+                self.updateNowPlaying()
             }
         }
 
@@ -352,6 +399,8 @@ final class PlaybackManager: ObservableObject {
 
         itemStatusObservation?.invalidate()
         itemStatusObservation = nil
+        timeControlObservation?.invalidate()
+        timeControlObservation = nil
     }
 
     private func configureRemoteCommands() {
