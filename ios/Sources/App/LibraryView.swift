@@ -195,31 +195,79 @@ struct LibraryView: View {
                 action: nil
             )
         } else {
-            List {
-                ForEach(library.listeningHistory) { entry in
-                    Button {
-                        playback.play(entry.track)
-                    } label: {
-                        HStack(spacing: 12) {
-                            TrackLibraryRow(track: entry.track)
-                            Spacer(minLength: 4)
-                            VStack(alignment: .trailing, spacing: 3) {
-                                Text("\(entry.playCount)×")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(MusikKuStyle.accent)
-                                Text(entry.lastPlayedAt.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(MusikKuStyle.secondary)
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    historyMetric(
+                        title: "Total diputar",
+                        value: String(library.listeningHistory.reduce(0) { $0 + $1.playCount }),
+                        symbol: "play.circle"
+                    )
+                    historyMetric(
+                        title: "Waktu dengar",
+                        value: durationLabel(library.listeningHistory.reduce(0) { $0 + ($1.listenedSeconds ?? 0) }),
+                        symbol: "clock"
+                    )
+                }
+                .padding(.horizontal, 2)
+                .padding(.top, 2)
+
+                List {
+                    ForEach(library.listeningHistory) { entry in
+                        Button {
+                            playback.play(entry.track)
+                        } label: {
+                            HStack(spacing: 12) {
+                                TrackLibraryRow(track: entry.track)
+                                Spacer(minLength: 4)
+                                VStack(alignment: .trailing, spacing: 3) {
+                                    Text("\(entry.playCount)×")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(MusikKuStyle.accent)
+                                    if let listened = entry.listenedSeconds, listened > 0 {
+                                        Text(durationLabel(listened))
+                                            .font(.system(size: 9, weight: .medium))
+                                            .foregroundStyle(MusikKuStyle.secondary)
+                                    }
+                                    Text(entry.lastPlayedAt.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(MusikKuStyle.secondary)
+                                }
                             }
                         }
+                        .buttonStyle(.plain)
+                        .listRowBackground(MusikKuStyle.surface)
                     }
-                    .buttonStyle(.plain)
-                    .listRowBackground(MusikKuStyle.surface)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
         }
+    }
+
+    private func historyMetric(title: String, value: String, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Label(title, systemImage: symbol)
+                .font(.caption)
+                .foregroundStyle(MusikKuStyle.secondary)
+            Text(value)
+                .font(.title3.weight(.bold).monospacedDigit())
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(13)
+        .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 15))
+    }
+
+    private func durationLabel(_ rawSeconds: Double) -> String {
+        let seconds = max(0, Int(rawSeconds.rounded()))
+        let hours = seconds / 3_600
+        let minutes = (seconds % 3_600) / 60
+        let remainder = seconds % 60
+        if hours > 0 { return "\(hours)j \(minutes)m" }
+        if minutes > 0 { return "\(minutes)m \(remainder)d" }
+        return "\(remainder)d"
     }
 
     @ViewBuilder

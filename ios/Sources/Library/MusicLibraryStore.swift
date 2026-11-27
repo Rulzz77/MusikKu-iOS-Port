@@ -177,6 +177,11 @@ final class MusicLibraryStore: ObservableObject {
         persist()
     }
 
+    /// Flushes sub-10-second listening progress before a track switch or app suspension.
+    func flushListeningStats() {
+        persist()
+    }
+
     /// Adds real elapsed listening time reported by the active AVPlayer session.
     /// The UI sends half-second heartbeats; disk writes are throttled to 10-second boundaries.
     func recordListenProgress(_ track: MusicTrack, seconds: Double = 0.5) {

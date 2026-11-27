@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var playback: PlaybackManager
     @EnvironmentObject private var library: MusicLibraryStore
     @State private var selectedTab: AppMainTab = .home
@@ -42,6 +43,15 @@ struct ContentView: View {
         .onChange(of: playback.playbackStartID) { _ in
             guard let track = playback.currentTrack else { return }
             library.recordPlay(track)
+        }
+
+        .onChange(of: playback.currentTrack?.id) { _ in
+            library.flushListeningStats()
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .background {
+                library.flushListeningStats()
+            }
         }
 
         .onChange(of: playback.playbackHeartbeatID) { _ in

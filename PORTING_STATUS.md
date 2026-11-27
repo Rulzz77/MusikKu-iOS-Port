@@ -6,7 +6,7 @@ Implemented in the current development branch:
 - SwiftUI app with Android-aligned Beranda, Explore, and Koleksi tabs; catalogue search is opened globally from the main screens.
 - Combined floating material dock with mini-player transport controls and main-tab navigation.
 - Android-aligned dark palette and mood/genre Explore grid sourced from `FEmusic_moods_and_genres`.
-- Local listening history with play counts and elapsed listening time, plus a Mix queue ranked by frequently played tracks.
+- Local listening history with play counts, elapsed listening time, totals in the History tab, and flushing of pending progress when switching tracks or entering background; Mix queue ranked by frequently played tracks.
 - Saved local Smart Playlist rules with minimum play count, optional artist filter, track-duration bounds, last-played window, ALL/ANY matching and most-played/recently-played/most-listened ordering.
 - Persistent local playlists and favorites using versioned UserDefaults JSON keys.
 - Playlist detail can queue tracks and remove items when a track has a resolved stream.
