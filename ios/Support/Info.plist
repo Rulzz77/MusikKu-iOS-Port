@@ -6,6 +6,8 @@
     <string>MusikKu</string>
     <key>CFBundleIdentifier</key>
     <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>CFBundleName</key>
     <string>MusikKu</string>
     <key>CFBundlePackageType</key>
@@ -21,8 +23,8 @@
         <key>UIApplicationSupportsMultipleScenes</key>
         <false/>
     </dict>
-    <key>UILaunchScreen</key>
-    <dict/>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
     <key>UIBackgroundModes</key>
     <array>
         <string>audio</string>
@@ -30,6 +32,13 @@
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>

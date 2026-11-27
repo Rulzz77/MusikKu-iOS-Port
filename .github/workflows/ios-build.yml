@@ -2,9 +2,31 @@ name: iOS Simulator Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, phase-1-ui-library-queue]
+    paths:
+      - ".github/workflows/ios-build.yml"
+      - "ios/**"
+      - "resolver-kmp/**"
+      - "gradle/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - "settings.gradle.kts"
   pull_request:
+    paths:
+      - ".github/workflows/ios-build.yml"
+      - "ios/**"
+      - "resolver-kmp/**"
+      - "gradle/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - "settings.gradle.kts"
   workflow_dispatch:
+
+# Keep only the newest validation for a pull request/branch.
+concurrency:
+  # A push and pull_request synchronize event for the same branch share one slot.
+  group: ios-simulator-ui-v4-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -12,15 +34,61 @@ permissions:
 jobs:
   ios-simulator:
     runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Java for Kotlin Multiplatform
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.8.2"
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Build InnerTubeX iOS XCFramework
+        run: gradle --no-daemon --stacktrace :resolver-kmp:assembleMusikKuResolverKitReleaseXCFramework
+
       - name: Generate Xcode project
         run: xcodegen generate --spec ios/project.yml --project ios
+
+      - name: Validate iOS release assets and privacy manifest
+        run: |
+          set -euo pipefail
+          plutil -lint ios/Support/Info.plist ios/Resources/PrivacyInfo.xcprivacy
+          python3 -m json.tool ios/Resources/Assets.xcassets/AppIcon.appiconset/Contents.json >/dev/null
+          test -s ios/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+          sips -g pixelWidth -g pixelHeight ios/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          project = Path("ios/project.yml").read_text()
+          info = Path("ios/Support/Info.plist").read_text()
+          asset_path = Path("ios/Resources/Assets.xcassets/AppIcon.appiconset")
+          asset = json.loads((asset_path / "Contents.json").read_text())
+
+          assert "ASSETCATALOG_COMPILER_APPICON_NAME" in project, "XcodeGen spec is missing AppIcon build setting"
+          assert "CFBundleIconName" in info, "Info.plist is missing CFBundleIconName"
+          assert any(
+              image.get("filename") == "AppIcon.png"
+              and image.get("idiom") == "universal"
+              and image.get("size") == "1024x1024"
+              for image in asset.get("images", [])
+          ), "AppIcon Contents.json is missing the universal 1024x1024 PNG entry"
+
+          legal_dir = Path("ios/Resources/Legal")
+          assert (legal_dir / "GPL-3.0.txt").read_bytes() == Path("LICENSE").read_bytes(), "Bundled GPL text is out of sync with LICENSE"
+          assert (legal_dir / "THIRD_PARTY_NOTICES.md").read_bytes() == Path("THIRD_PARTY_NOTICES.md").read_bytes(), "Bundled third-party notices are out of sync"
+          print("AppIcon, privacy manifest and bundled legal-notice validation passed.")
+          PY
 
       - name: Build for iOS Simulator
         run: >-
@@ -29,5 +97,226 @@ jobs:
           -scheme MusikKu
           -sdk iphonesimulator
           -destination 'generic/platform=iOS Simulator'
+          ARCHS=arm64
+          ONLY_ACTIVE_ARCH=YES
           CODE_SIGNING_ALLOWED=NO
           build
+
+      - name: Run unit tests in iOS Simulator
+        run: |
+          set -euo pipefail
+
+          SIMULATOR_ID="$(xcrun simctl list devices available --json | python3 -c '
+          import json
+          import sys
+
+          devices = json.load(sys.stdin).get("devices", {})
+          for runtime, runtime_devices in devices.items():
+              if "iOS" not in runtime:
+                  continue
+              for device in runtime_devices:
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      print(device["udid"])
+                      raise SystemExit
+          ')"
+
+          if [[ -z "$SIMULATOR_ID" ]]; then
+            echo "::error::No available iPhone Simulator found for unit tests."
+            exit 1
+          fi
+
+          xcodebuild test \
+            -project ios/MusikKu.xcodeproj \
+            -scheme MusikKu \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData-UnitTests" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Install and launch app in iOS Simulator
+        run: |
+          set -euo pipefail
+
+          DEVICE_ID="$(xcrun simctl list devices available --json | python3 -c '
+          import json
+          import sys
+
+          devices = json.load(sys.stdin).get("devices", {})
+          for runtime, runtime_devices in devices.items():
+              if "iOS" not in runtime:
+                  continue
+              for device in runtime_devices:
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      print(device["udid"])
+                      raise SystemExit
+          ')"
+
+          if [[ -z "$DEVICE_ID" ]]; then
+            echo "::warning::No available iPhone Simulator found; launch smoke test skipped."
+            exit 0
+          fi
+
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -type d \
+            -path '*/Build/Products/Debug-iphonesimulator/MusikKu.app' -print -quit)"
+          if [[ -z "$APP_PATH" || ! -d "$APP_PATH" ]]; then
+            echo "::error::Built MusikKu.app bundle was not found."
+            exit 1
+          fi
+
+          # Verify release metadata and legal texts survive XcodeGen resource packaging.
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$APP_PATH/Info.plist" >/dev/null
+          test -s "$APP_PATH/PrivacyInfo.xcprivacy"
+          test -s "$APP_PATH/Assets.car"
+          for LEGAL_FILE in GPL-3.0.txt THIRD_PARTY_NOTICES.md; do
+            if [[ -s "$APP_PATH/$LEGAL_FILE" ]]; then
+              continue
+            fi
+            if [[ -s "$APP_PATH/Legal/$LEGAL_FILE" ]]; then
+              continue
+            fi
+            echo "::error::Bundled legal document is missing: $LEGAL_FILE"
+            exit 1
+          done
+          echo "AppIcon metadata, Privacy Manifest, asset catalog and legal notices are present in MusikKu.app."
+
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
+
+          cleanup() {
+            xcrun simctl terminate "$DEVICE_ID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            xcrun simctl shutdown "$DEVICE_ID" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          xcrun simctl boot "$DEVICE_ID" >/dev/null 2>&1 || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          xcrun simctl install "$DEVICE_ID" "$APP_PATH"
+          xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID"
+          sleep 10
+
+          if ! xcrun simctl spawn "$DEVICE_ID" launchctl list |
+            awk -v bundle_id="$BUNDLE_ID" '$1 ~ /^[0-9]+$/ && index($0, bundle_id) { found = 1 } END { exit !found }'; then
+            echo "::error::MusikKu exited after launch."
+            xcrun simctl spawn "$DEVICE_ID" log show --last 30s --style compact \
+              --predicate "process == 'MusikKu' AND messageType >= 16" || true
+            exit 1
+          fi
+
+          xcrun simctl io "$DEVICE_ID" screenshot "$GITHUB_WORKSPACE/MusikKu-Simulator-UI-Preview.png"
+          echo "Captured iOS Simulator UI preview for $BUNDLE_ID."
+          echo "iOS Simulator launch smoke test passed for $BUNDLE_ID."
+
+      - name: Upload iOS Simulator UI preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: MusikKu-iOS-UI-Preview
+          path: MusikKu-Simulator-UI-Preview.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Package iOS Simulator app for Appetize
+        run: |
+          set -euo pipefail
+
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -type d \
+            -path '*/Build/Products/Debug-iphonesimulator/MusikKu.app' -print -quit)"
+          if [[ -z "$APP_PATH" || ! -d "$APP_PATH" ]]; then
+            echo "::error::Built iOS Simulator MusikKu.app bundle was not found."
+            exit 1
+          fi
+
+          INFO_PLIST="$APP_PATH/Info.plist"
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")"
+          PLATFORM="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$INFO_PLIST")"
+          EXECUTABLE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$INFO_PLIST")"
+          EXECUTABLE="$APP_PATH/$EXECUTABLE_NAME"
+
+          if [[ "$BUNDLE_ID" != "id.musikku.ios" ]]; then
+            echo "::error::Unexpected Simulator bundle identifier: $BUNDLE_ID"
+            exit 1
+          fi
+          if [[ "$PLATFORM" != "iPhoneSimulator" ]]; then
+            echo "::error::Expected an iPhoneSimulator build, found $PLATFORM."
+            exit 1
+          fi
+          if [[ ! -f "$EXECUTABLE" ]]; then
+            echo "::error::Simulator app executable was not found."
+            exit 1
+          fi
+
+          ARCHS="$(/usr/bin/lipo -archs "$EXECUTABLE")"
+          case " $ARCHS " in
+            *" arm64 "*) ;;
+            *)
+              echo "::error::Appetize artifact must contain the arm64 Simulator architecture; found: $ARCHS"
+              exit 1
+              ;;
+          esac
+
+          STAGING="$RUNNER_TEMP/MusikKu-Appetize"
+          mkdir -p "$STAGING"
+          ditto "$APP_PATH" "$STAGING/MusikKu.app"
+          (
+            cd "$STAGING"
+            /usr/bin/zip -qry "$GITHUB_WORKSPACE/MusikKu-iOS-Simulator-Appetize.zip" MusikKu.app
+          )
+
+          /usr/bin/unzip -tq "$GITHUB_WORKSPACE/MusikKu-iOS-Simulator-Appetize.zip"
+          /usr/bin/unzip -l "$GITHUB_WORKSPACE/MusikKu-iOS-Simulator-Appetize.zip" |
+            grep -q 'MusikKu.app/Info.plist'
+          echo "Prepared Appetize Simulator build for $BUNDLE_ID ($ARCHS)."
+
+      - name: Upload iOS Simulator build for Appetize
+        uses: actions/upload-artifact@v4
+        with:
+          name: MusikKu-iOS-Simulator-Appetize
+          path: MusikKu-iOS-Simulator-Appetize.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Build unsigned IPA for physical iPhone
+        run: |
+          set -euo pipefail
+
+          DEVICE_DERIVED_DATA="$RUNNER_TEMP/DerivedData-iOSDevice"
+          xcodebuild \
+            -project ios/MusikKu.xcodeproj \
+            -scheme MusikKu \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DEVICE_DERIVED_DATA" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+          APP_PATH="$DEVICE_DERIVED_DATA/Build/Products/Release-iphoneos/MusikKu.app"
+          if [[ ! -d "$APP_PATH" ]]; then
+            echo "::error::Device MusikKu.app bundle was not found."
+            exit 1
+          fi
+
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
+          if [[ "$BUNDLE_ID" != "id.musikku.ios" ]]; then
+            echo "::error::Unexpected bundle identifier: $BUNDLE_ID"
+            exit 1
+          fi
+
+          IPA_STAGING="$RUNNER_TEMP/MusikKu-IPA"
+          mkdir -p "$IPA_STAGING/Payload"
+          ditto "$APP_PATH" "$IPA_STAGING/Payload/MusikKu.app"
+          (cd "$IPA_STAGING" && /usr/bin/zip -qry "$GITHUB_WORKSPACE/MusikKu-iOS-unsigned.ipa" Payload)
+
+          /usr/bin/unzip -l "$GITHUB_WORKSPACE/MusikKu-iOS-unsigned.ipa" | grep -q 'Payload/MusikKu.app/Info.plist'
+          echo "Created unsigned iPhone IPA for $BUNDLE_ID."
+
+      - name: Upload unsigned IPA for Sideloadly
+        uses: actions/upload-artifact@v4
+        with:
+          name: MusikKu-iOS-unsigned-IPA
+          path: MusikKu-iOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
