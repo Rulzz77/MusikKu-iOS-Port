@@ -1,15 +1,18 @@
-# MusikKu iOS — Porting Starter
+# MusikKu iOS — Native Port
 
-This repository is a **separate iOS porting starter**, not a completed iOS conversion of the Android application.
+This repository is the separate native iOS project for MusikKu. It does not modify the Android repository at https://github.com/Rulzz77/Musikku.
 
-It contains an XcodeGen-based SwiftUI shell, an AVPlayer playback foundation, lock-screen / Control Center command wiring, a macOS GitHub Actions simulator build, and the source audit / migration plan for the original repository.
+## Current status
 
-## Relationship to the Android project
+The project is an actively developed iOS port, not yet a complete feature-equivalent release. The first UI/library milestone contains:
 
-- Original project: https://github.com/Rulzz77/Musikku
-- This starter does not modify the original repository.
-- The current Android code is not copied wholesale into this starter. The audit identifies what can be shared and what needs a native iOS implementation.
-- The catalog provider, login flows, lyrics providers, playlists, and advanced audio DSP are **not yet connected**. No unofficial music stream resolver or third-party credentials are bundled here.
+- SwiftUI tabs: Beranda, Cari, and Koleksi.
+- Local playlist creation/deletion and a local favorites store.
+- AVPlayer queue foundation, including enqueue, next/previous, and automatic advance.
+- Lock-screen / Control Center transport commands and audio-interruption handling.
+- XcodeGen project generation and a macOS GitHub Actions Simulator build.
+
+The search screen intentionally shows that the catalog is not connected yet. No production catalog, stream resolver, account provider, or lyric provider is included at this stage.
 
 ## Requirements
 
@@ -40,32 +43,13 @@ Open the generated project in Xcode:
 open ios/MusikKu.xcodeproj
 ```
 
-## What works in this starter
+## Important limitations
 
-- SwiftUI app entry point and a basic player shell.
-- AVPlayer-based remote audio playback when a valid HTTPS stream URL is supplied by an authorized provider.
-- Basic play/pause, seeking, periodic playback position, Now Playing metadata, and lock-screen / Control Center play-pause / skip commands.
-- iOS background-audio mode declaration. Background operation still needs to be verified on a physical device after catalog playback is integrated.
+- The catalog and online search are not connected.
+- Playback requires a valid HTTP(S) stream URL provided by a source authorized for use in this app.
+- Background audio is declared and the AVAudioSession is configured, but it still needs physical-iPhone verification.
+- Local playlists and favorites are stored on the current device only; no login or cloud sync is implemented.
+- The project does not currently provide APK-style self-updates. iOS distribution uses TestFlight / App Store channels.
+- A technically successful build does not by itself establish third-party service permission or App Store approval.
 
-## What is not implemented yet
-
-- A real music catalog/search provider.
-- Authentication, token refresh, or secure account storage.
-- Playlist persistence / sync, favorites, listening history, and recommendations.
-- Timed lyrics and translation providers.
-- Queue management and next/previous track coordination.
-- Advanced crossfade, equalizer, Automix, beat/vocal analysis, and lossless / DSD paths.
-- Spotify import, Listen Together, or other third-party integrations.
-- App Store/TestFlight signing and release pipeline.
-
-See [the porting audit](docs/IOS_PORTING_AUDIT.md) and [feature migration matrix](docs/FEATURE_MIGRATION_MATRIX.md) before implementing those features.
-
-## Suggested first milestone
-
-1. Select a catalog / streaming provider whose terms expressly permit use in a third-party iOS app.
-2. Implement search and a stable `Track` model adapter.
-3. Connect authorized HTTPS playback URLs to `PlaybackManager`.
-4. Verify interruption handling, Bluetooth, AirPlay, lock-screen controls, and background playback on a physical iPhone.
-5. Add persistence and lyrics after playback is stable.
-
-The project is deliberately conservative: it does not pretend the Android app's YouTube Music extraction or download paths are already iOS-compatible or App Store-approved.
+See [the porting audit](docs/IOS_PORTING_AUDIT.md), [feature migration matrix](docs/FEATURE_MIGRATION_MATRIX.md), and [porting status](PORTING_STATUS.md) for details.

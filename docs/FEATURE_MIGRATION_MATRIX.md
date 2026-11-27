@@ -2,13 +2,13 @@
 
 | Android MusikKu capability | iOS direction | Status in this starter |
 |---|---|---|
-| Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | Not connected |
-| Remote audio playback | AVPlayer / AVQueuePlayer | Basic AVPlayer foundation |
-| Background playback | AVAudioSession `.playback` + iOS background audio mode | Declared; device testing still required |
-| Lock-screen / Control Center | MPNowPlayingInfoCenter + MPRemoteCommandCenter | Basic metadata and remote controls |
-| Play queue / next / previous | Shared pure queue model + native player queue controller | Not implemented |
-| Liked songs / playlists | SwiftData / Core Data or shared persistence adapter | Not implemented |
-| Guest usage | Local guest store; no login gate for local actions | Not implemented |
+| Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | UI shell only; provider not connected |
+| Remote audio playback | AVPlayer / AVQueuePlayer | AVPlayer foundation; requires authorized stream URL |
+| Background playback | AVAudioSession `.playback` + iOS background audio mode | Declared; physical-device verification outstanding |
+| Lock-screen / Control Center | MPNowPlayingInfoCenter + MPRemoteCommandCenter | Basic metadata and play/pause/skip/next/previous commands |
+| Play queue / next / previous | Shared pure queue model + native player queue controller | AVPlayer queue controller foundation implemented |
+| Liked songs / playlists | SwiftData / Core Data or shared persistence adapter | Local UserDefaults JSON store; UI creates/deletes playlists |
+| Guest usage | Local guest store; no login gate for local actions | Local playlist/favorites storage foundation |
 | Login / account | Provider-approved OAuth + Keychain | Not implemented |
 | Lyrics | Provider adapters using URLSession / Ktor Darwin | Not implemented |
 | Translation | Provider adapter; cache and attribution | Not implemented |
