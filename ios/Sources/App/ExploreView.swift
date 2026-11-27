@@ -116,7 +116,7 @@ struct ExploreView: View {
             }
             await loadArtworkForVisibleCategories()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Mood dan genre belum dapat dimuat. Periksa koneksi lalu coba lagi.")
         }
     }
 
@@ -370,7 +370,7 @@ private struct ExploreCategoryDetailSheet: View {
                 params: category.params
             )
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Kategori ini belum dapat dibuka. Coba lagi nanti.")
         }
     }
 

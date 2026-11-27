@@ -240,7 +240,7 @@ struct HomeView: View {
                 homeErrorMessage = "Belum ada rekomendasi yang dikirim katalog untuk sesi ini."
             }
         } catch {
-            homeErrorMessage = error.localizedDescription
+            homeErrorMessage = MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Rekomendasi musik belum bisa dimuat. Periksa koneksi lalu coba lagi.")
         }
     }
 

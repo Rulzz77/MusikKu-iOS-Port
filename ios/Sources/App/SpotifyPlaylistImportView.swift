@@ -310,7 +310,7 @@ struct SpotifyPlaylistImportView: View {
                 progressText = "Mencocokkan \(completed) dari \(total) lagu…"
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Playlist Spotify belum dapat dibaca. Pastikan tautannya publik dan koneksi tersedia.")
         }
     }
 }
@@ -460,7 +460,7 @@ private struct SpotifyManualMatchSheet: View {
             }
         } catch {
             results = []
-            errorMessage = error.localizedDescription
+            errorMessage = MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Pencarian lagu pengganti belum berhasil. Periksa koneksi lalu coba lagi.")
         }
     }
 }

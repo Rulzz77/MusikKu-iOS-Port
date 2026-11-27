@@ -113,3 +113,37 @@ final class MusicLibraryStoreTests: XCTestCase {
         XCTAssertEqual(result, ["matching"])
     }
 }
+
+
+final class MusikKuErrorMessageTests: XCTestCase {
+    func testMapsOfflineNetworkErrorToIndonesianMessage() {
+        XCTAssertEqual(
+            MusikKuErrorMessage.indonesianMessage(
+                for: URLError(.notConnectedToInternet),
+                fallback: "Fallback"
+            ),
+            "Tidak dapat terhubung ke internet. Periksa koneksi lalu coba lagi."
+        )
+    }
+
+    func testMapsTimeoutToIndonesianMessage() {
+        XCTAssertEqual(
+            MusikKuErrorMessage.indonesianMessage(
+                for: URLError(.timedOut),
+                fallback: "Fallback"
+            ),
+            "Koneksi terlalu lama. Coba lagi."
+        )
+    }
+
+    func testUsesScreenSpecificFallbackForUnexpectedError() {
+        let unexpected = NSError(domain: "MusikKuTests", code: 1)
+        XCTAssertEqual(
+            MusikKuErrorMessage.indonesianMessage(
+                for: unexpected,
+                fallback: "Katalog belum dapat dimuat."
+            ),
+            "Katalog belum dapat dimuat."
+        )
+    }
+}

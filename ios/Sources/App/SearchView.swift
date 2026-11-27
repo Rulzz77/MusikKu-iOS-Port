@@ -427,7 +427,7 @@ struct SearchView: View {
             library.recordSearch(trimmed)
         } catch {
             results = []
-            errorMessage = error.localizedDescription
+            errorMessage = MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Pencarian katalog belum berhasil. Periksa koneksi lalu coba lagi.")
         }
     }
 
@@ -888,7 +888,7 @@ struct CatalogBrowseDetailSheet: View {
         do {
             page = try await MusicCatalogService.shared.browsePage(browseID: browseID)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Halaman katalog belum dapat dimuat. Coba lagi nanti.")
         }
     }
 }
