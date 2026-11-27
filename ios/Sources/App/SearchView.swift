@@ -263,6 +263,10 @@ struct SearchView: View {
                             guard item.canSaveAsTrack else { return }
                             playback.play(item.asMusicTrack())
                         },
+                        onEnqueue: {
+                            guard item.canSaveAsTrack else { return }
+                            playback.enqueue(item.asMusicTrack())
+                        },
                         onOpen: {
                             guard item.browseID != nil else { return }
                             selectedBrowseItem = item
@@ -458,6 +462,7 @@ private struct CatalogResultRow: View {
     let isSaved: Bool
     let onSave: () -> Void
     let onPlay: () -> Void
+    let onEnqueue: () -> Void
     let onOpen: () -> Void
 
     var body: some View {
@@ -524,6 +529,16 @@ private struct CatalogResultRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Putar \(item.title)")
+
+                Button(action: onEnqueue) {
+                    Image(systemName: "text.badge.plus")
+                        .font(.title3)
+                        .foregroundStyle(MusikKuStyle.secondary)
+                        .frame(width: 34, height: 38)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Tambah \(item.title) ke antrean")
 
                 Button(action: onSave) {
                     Image(systemName: isSaved ? "heart.fill" : "heart")

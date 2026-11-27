@@ -9,11 +9,11 @@ Current state: **native iOS UI with Android-aligned Beranda / Explore / Koleksi 
 - Explore mood/genre grid from FEmusic_moods_and_genres, category browse detail and artwork lookup.
 - Home feed from FEmusic_home, with Home/Search/browse/category continuation paging.
 - WEB_REMIX Search with All/Songs/Videos/Albums/Artists/Playlists filters, debounced query suggestions, local recent-search history with per-item deletion, and pagination.
-- Album/artist/playlist browse pages with headers, artwork, related shelves, play-per-track/play-all and local collection actions.
+- Album/artist/playlist browse pages with headers, artwork, related shelves, play-per-track/play-all, local collection actions and add-to-queue actions from catalog rows/cards.
 - Persistent local playlists and favorites using versioned UserDefaults JSON keys; local data does not require login.
 - Local listening history with play counts and AVPlayer elapsed listening time; totals are shown in the History tab. Individual entries can be deleted or the entire history cleared with confirmation. Pending progress is flushed when playback restarts, tracks change, or the app enters background.
 - Play-count Mix and saved local Smart Playlist rules: minimum play count, optional artist filter, duration bounds, last-played window, ALL/ANY matching, and most-played/recently-played/most-listened sorting. Genre and release-year rules remain unavailable because the current iOS catalogue model does not expose those fields consistently.
-- AVPlayer queue with enqueue/removal, clear-all with confirmation, next/previous, shuffle, repeat Off/All/One, automatic advance and manual drag-and-drop queue reordering.
+- AVPlayer queue with enqueue/removal from Search/Home/Explore, clear-all with confirmation, next/previous, shuffle, repeat Off/All/One, automatic advance and manual drag-and-drop queue reordering.
 - Now Playing screen and mini-player with artwork, seek, favorite, add-to-playlist, queue inspection and removal.
 - Player settings with persistent 0.75×–2.0× playback speed, persisted repeat mode, sleep timer presets and custom 5-minute steps up to 12 hours, stop-after-current-track, and optional 30-second fade-out.
 - MPNowPlayingInfoCenter / MPRemoteCommandCenter controls, audio-session interruption handling, headphone-removal pause and background audio configuration.

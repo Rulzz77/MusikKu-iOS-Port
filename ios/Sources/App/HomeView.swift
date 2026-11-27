@@ -397,6 +397,7 @@ private struct CatalogHomeShelfSection: View {
 }
 
 private struct CatalogHomeItemCard: View {
+    @EnvironmentObject private var playback: PlaybackManager
     let item: CatalogItem
     let onOpen: () -> Void
 
@@ -437,6 +438,15 @@ private struct CatalogHomeItemCard: View {
         .buttonStyle(.plain)
         .disabled(!item.canSaveAsTrack && item.browseID == nil)
         .accessibilityElement(children: .combine)
+        .contextMenu {
+            if item.canSaveAsTrack {
+                Button {
+                    playback.enqueue(item.asMusicTrack())
+                } label: {
+                    Label("Tambah ke antrean", systemImage: "text.badge.plus")
+                }
+            }
+        }
     }
 
     private var placeholder: some View {

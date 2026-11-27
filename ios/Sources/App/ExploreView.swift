@@ -453,6 +453,7 @@ private struct ExploreCategoryShelf: View {
 }
 
 private struct ExploreCategoryTrack: View {
+    @EnvironmentObject private var playback: PlaybackManager
     let item: CatalogItem
     let onOpen: () -> Void
 
@@ -478,5 +479,14 @@ private struct ExploreCategoryTrack: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            if item.canSaveAsTrack {
+                Button {
+                    playback.enqueue(item.asMusicTrack())
+                } label: {
+                    Label("Tambah ke antrean", systemImage: "text.badge.plus")
+                }
+            }
+        }
     }
 }
