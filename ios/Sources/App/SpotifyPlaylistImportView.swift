@@ -354,11 +354,17 @@ private struct SpotifyManualMatchSheet: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if results.isEmpty {
-                    ContentUnavailableView(
-                        "Pilih pengganti lagu",
-                        systemImage: "music.note.magnifyingglass",
-                        description: Text("Cari lagu katalog yang paling sesuai dengan judul Spotify.")
-                    )
+                    VStack(spacing: 10) {
+                        Image(systemName: "music.note.magnifyingglass")
+                            .font(.system(size: 32))
+                            .foregroundStyle(MusikKuStyle.accent)
+                        Text("Pilih pengganti lagu")
+                            .font(.headline)
+                        Text("Cari lagu katalog yang paling sesuai dengan judul Spotify.")
+                            .font(.caption)
+                            .foregroundStyle(MusikKuStyle.secondary)
+                            .multilineTextAlignment(.center)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
