@@ -4,6 +4,22 @@ import MediaPlayer
 import UIKit
 import MusikKuResolverKit
 
+enum PlaybackRepeatMode: String, CaseIterable, Identifiable {
+    case off
+    case all
+    case one
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .off: return "Tidak diulang"
+        case .all: return "Ulangi antrean"
+        case .one: return "Ulangi satu lagu"
+        }
+    }
+}
+
 @MainActor
 final class PlaybackManager: ObservableObject {
     @Published private(set) var currentTrack: MusicTrack?
@@ -13,13 +29,20 @@ final class PlaybackManager: ObservableObject {
     @Published private(set) var duration: Double = 0
     @Published private(set) var queue: [MusicTrack] = []
     @Published private(set) var isShuffleEnabled = false
-    @Published private(set) var isRepeatEnabled = false
+    @Published private(set) var repeatMode: PlaybackRepeatMode = .off
+    @Published private(set) var playbackSpeed: Double = 1.0
+    @Published private(set) var sleepTimerEndDate: Date?
     @Published private(set) var isResolving = false
     @Published private(set) var isBuffering = false
     @Published var errorMessage: String?
 
     private var currentQueueIndex: Int?
+    private var sleepTimerTask: Task<Void, Never>?
+    private let playbackSpeedKey = "musikku.player.playback-speed.v1"
     var currentQueueTrackIndex: Int? { currentQueueIndex }
+    var isRepeatEnabled: Bool { repeatMode != .off }
+
+    static let availablePlaybackSpeeds: [Double] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
 
     private var player: AVPlayer?
     private var timeObserver: Any?
@@ -36,6 +59,10 @@ final class PlaybackManager: ObservableObject {
     private var loadedArtwork: UIImage?
 
     init() {
+        let savedSpeed = UserDefaults.standard.double(forKey: playbackSpeedKey)
+        if Self.availablePlaybackSpeeds.contains(where: { abs($0 - savedSpeed) < 0.001 }) {
+            playbackSpeed = savedSpeed
+        }
         configureRemoteCommands()
         configureAudioSessionNotifications()
 
@@ -133,7 +160,51 @@ final class PlaybackManager: ObservableObject {
     }
 
     func toggleRepeat() {
-        isRepeatEnabled.toggle()
+        let nextIndex = (PlaybackRepeatMode.allCases.firstIndex(of: repeatMode) ?? -1) + 1
+        repeatMode = PlaybackRepeatMode.allCases[nextIndex % PlaybackRepeatMode.allCases.count]
+    }
+
+    func setRepeatMode(_ mode: PlaybackRepeatMode) {
+        repeatMode = mode
+    }
+
+    func setPlaybackSpeed(_ speed: Double) {
+        guard let supported = Self.availablePlaybackSpeeds.first(where: { abs($0 - speed) < 0.001 }) else {
+            return
+        }
+        playbackSpeed = supported
+        UserDefaults.standard.set(supported, forKey: playbackSpeedKey)
+        if let player, isPlaying {
+            player.rate = Float(supported)
+        }
+        updateNowPlaying()
+    }
+
+    func setSleepTimer(minutes: Int?) {
+        sleepTimerTask?.cancel()
+        sleepTimerTask = nil
+        sleepTimerEndDate = nil
+
+        guard let minutes, (1...180).contains(minutes) else { return }
+        let duration = UInt64(minutes) * 60 * 1_000_000_000
+        sleepTimerEndDate = Date().addingTimeInterval(TimeInterval(minutes * 60))
+        sleepTimerTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: duration)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            self?.pause()
+            self?.sleepTimerEndDate = nil
+            self?.sleepTimerTask = nil
+        }
+    }
+
+    func cancelSleepTimer() {
+        sleepTimerTask?.cancel()
+        sleepTimerTask = nil
+        sleepTimerEndDate = nil
     }
 
     func togglePlayback() {
@@ -167,7 +238,7 @@ final class PlaybackManager: ObservableObject {
         }
         do {
             try AVAudioSession.sharedInstance().setActive(true)
-            player.play()
+            player.playImmediately(atRate: Float(playbackSpeed))
             isPlaying = true
             errorMessage = nil
             updateNowPlaying()
@@ -185,7 +256,11 @@ final class PlaybackManager: ObservableObject {
             nextIndex = candidates.randomElement()
         } else {
             let candidate = currentQueueIndex + 1
-            nextIndex = queue.indices.contains(candidate) ? candidate : nil
+            if queue.indices.contains(candidate) {
+                nextIndex = candidate
+            } else {
+                nextIndex = repeatMode == .all ? queue.indices.first : nil
+            }
         }
 
         guard let nextIndex else {
@@ -220,7 +295,7 @@ final class PlaybackManager: ObservableObject {
     }
 
     private func handleTrackEnded() {
-        guard isRepeatEnabled, let player else {
+        guard repeatMode == .one, let player else {
             playNext()
             return
         }
@@ -382,7 +457,7 @@ final class PlaybackManager: ObservableObject {
             }
         }
 
-        nextPlayer.play()
+        nextPlayer.playImmediately(atRate: Float(playbackSpeed))
         playbackStartID = UUID()
         isPlaying = true
         updateNowPlaying()
@@ -550,7 +625,7 @@ final class PlaybackManager: ObservableObject {
             MPMediaItemPropertyTitle: currentTrack.title,
             MPMediaItemPropertyArtist: currentTrack.artist,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: position,
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? playbackSpeed : 0.0
         ]
 
         if let album = currentTrack.album {

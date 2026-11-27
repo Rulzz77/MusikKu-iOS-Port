@@ -61,6 +61,7 @@ struct NowPlayingView: View {
     @State private var isShowingQueue = false
     @State private var isShowingPlaylistPicker = false
     @State private var isShowingLyrics = false
+    @State private var isShowingPlayerSettings = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -97,6 +98,11 @@ struct NowPlayingView: View {
                     .presentationDragIndicator(.visible)
             }
         }
+        .sheet(isPresented: $isShowingPlayerSettings) {
+            PlayerSettingsView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private func playerContent(for track: MusicTrack, availableWidth: CGFloat) -> some View {
@@ -112,6 +118,16 @@ struct NowPlayingView: View {
                 }
 
                 Spacer()
+
+                Button {
+                    isShowingPlayerSettings = true
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.title3)
+                        .frame(width: 42, height: 42)
+                        .background(MusikKuStyle.surface, in: Circle())
+                }
+                .accessibilityLabel("Pengaturan pemutar")
 
                 Button {
                     isShowingQueue = true
@@ -239,11 +255,11 @@ struct NowPlayingView: View {
                 Button {
                     playback.toggleRepeat()
                 } label: {
-                    Image(systemName: playback.isRepeatEnabled ? "repeat.1" : "repeat")
-                        .foregroundStyle(playback.isRepeatEnabled ? MusikKuStyle.accent : MusikKuStyle.secondary)
+                    Image(systemName: playback.repeatMode == .one ? "repeat.1" : "repeat")
+                        .foregroundStyle(playback.repeatMode == .off ? MusikKuStyle.secondary : MusikKuStyle.accent)
                         .frame(maxWidth: .infinity)
                 }
-                .accessibilityLabel("Ulangi lagu")
+                .accessibilityLabel(playback.repeatMode.title)
             }
             .buttonStyle(.plain)
             .padding(.vertical, 4)
