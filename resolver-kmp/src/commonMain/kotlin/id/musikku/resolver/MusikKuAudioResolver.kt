@@ -7,6 +7,7 @@ import com.metrolist.innertubex.cipher.YouTubeCipherService
 import com.metrolist.innertubex.extraction.AudioQuality
 import com.metrolist.innertubex.extraction.ContentHints
 import com.metrolist.innertubex.extraction.InnerTubeExtractor
+import com.metrolist.innertubex.extraction.YtConfigParser
 import com.metrolist.innertubex.extraction.YtConfigParserImpl
 import com.metrolist.innertubex.extraction.generateClientPlaybackNonce
 import com.metrolist.innertubex.models.YouTubeLocale
@@ -42,7 +43,7 @@ class MusikKuAudioResolver {
         repository = createPlatformPlayerConfigRepository()
     )
     private val cipherService = YouTubeCipherService(httpClient, configStore)
-    private val configParser = YtConfigParserImpl(httpClient, innerTube, configStore)
+    private val configParser = YtConfigParserImpl(httpClient, innerTube, configStore).withEmbeddedConfigFallback()
     private val failedProfileMutex = Mutex()
     private val failedStreamProfiles = mutableMapOf<String, MutableMap<String, TimeMark>>()
     private val recoveryScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -105,7 +106,9 @@ class MusikKuAudioResolver {
             allowHls = false,
             allowSabr = false,
             allowBoundedRange = true,
-            allowProgressive = false
+            // Last-resort iOS Producer returns a muxed MP4 with AAC audio. AVPlayer
+            // can play that file without attaching a video layer, after direct audio fails.
+            allowProgressive = true
         )
 
         val excludedClients = failedStreamClients(videoId)
@@ -121,8 +124,12 @@ class MusikKuAudioResolver {
         require(url.startsWith("https://", ignoreCase = true)) {
             "The resolver did not return a secure HTTPS audio URL"
         }
-        require(stream.mimeType?.startsWith("audio/mp4", ignoreCase = true) == true) {
-            "The selected stream is not an AVPlayer-compatible MP4 audio stream."
+        val mimeType = stream.mimeType?.substringBefore(';')?.trim().orEmpty()
+        val isAudioOnlyMp4 = mimeType.equals("audio/mp4", ignoreCase = true)
+        val isMuxedMp4WithAac = mimeType.equals("video/mp4", ignoreCase = true) &&
+            stream.codecs?.contains("mp4a", ignoreCase = true) == true
+        require(isAudioOnlyMp4 || isMuxedMp4WithAac) {
+            "The selected stream is not an AVPlayer-compatible AAC MP4 stream."
         }
 
         return ResolvedAudioStream(
@@ -199,6 +206,27 @@ class MusikKuAudioResolver {
         close()
     }
 }
+ 
+/**
+ * Matches the production Metrolist resolver fallback: if the regular watch-page
+ * parser cannot obtain a usable player config, retry with YouTube's embedded page.
+ * This is still an anonymous request; the iOS token provider never sends account cookies.
+ */
+private fun YtConfigParser.withEmbeddedConfigFallback(): YtConfigParser =
+    object : YtConfigParser by this {
+        override suspend fun fetchConfig(
+            videoId: String,
+            useLoginCookies: Boolean,
+        ): com.metrolist.innertubex.extraction.PlayerConfig =
+            try {
+                this@withEmbeddedConfigFallback.fetchConfig(videoId, useLoginCookies)
+            } catch (_: IllegalStateException) {
+                this@withEmbeddedConfigFallback.fetchEmbeddedConfig(
+                    videoId = videoId,
+                    useLoginCookies = false,
+                )
+            }
+    }
 
 private const val STREAM_PROFILE_FAILURE_TTL_MS = 10 * 60 * 1000L
 private const val MAX_FAILED_STREAM_ENTRIES = 256

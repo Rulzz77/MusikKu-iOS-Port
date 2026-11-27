@@ -37,6 +37,9 @@ final class PlaybackManager: ObservableObject {
     @Published private(set) var sleepTimerFadeOutEnabled = true
     @Published private(set) var isResolving = false
     @Published private(set) var isBuffering = false
+    @Published private(set) var playbackStatusMessage: String?
+    /// Safe metadata only: never contains signed stream URLs, request headers, or PO tokens.
+    @Published private(set) var resolvedStreamInfo: String?
     @Published var errorMessage: String?
 
     private var currentQueueIndex: Int?
@@ -105,6 +108,9 @@ final class PlaybackManager: ObservableObject {
             currentTrack = nil
             isPlaying = false
             isBuffering = false
+            playbackStatusMessage = nil
+            resolvedStreamInfo = nil
+            errorMessage = nil
             position = 0
             duration = 0
             updateNowPlaying()
@@ -303,6 +309,9 @@ final class PlaybackManager: ObservableObject {
         player?.pause()
         isPlaying = false
         isBuffering = false
+        if currentTrack != nil && errorMessage == nil {
+            playbackStatusMessage = "Dijeda"
+        }
         updateNowPlaying()
     }
 
@@ -310,6 +319,7 @@ final class PlaybackManager: ObservableObject {
         // AVPlayer keeps a failed item attached; calling play() again cannot recover it.
         // Recreate the item and resolve a fresh stream when the user taps Play after an error.
         if player?.currentItem?.status == .failed, let track = currentTrack {
+            playbackStatusMessage = "Mencoba memutar ulang…"
             startTrack(track)
             return
         }
@@ -329,6 +339,7 @@ final class PlaybackManager: ObservableObject {
             updateNowPlaying()
         } catch {
             errorMessage = "Tidak dapat melanjutkan audio: \(MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Perangkat menolak permintaan audio."))"
+            playbackStatusMessage = errorMessage
         }
     }
 
@@ -411,6 +422,8 @@ final class PlaybackManager: ObservableObject {
         currentTrack = track
         pendingPlaybackStartTrackID = track.id
         isBuffering = false
+        playbackStatusMessage = "Menyiapkan pemutaran…"
+        resolvedStreamInfo = nil
         position = 0
         duration = 0
         errorMessage = nil
@@ -424,12 +437,14 @@ final class PlaybackManager: ObservableObject {
 
         // Direct online streams must use TLS; the KMP resolver also enforces HTTPS.
         if let url = track.streamURL, url.scheme?.lowercased() == "https" {
+            resolvedStreamInfo = "Stream HTTPS langsung"
             startPlayer(track: track, url: url, headers: [:])
             return
         }
 
         guard let videoID = track.youtubeVideoID else {
             errorMessage = "Lagu ini belum memiliki ID video untuk mengambil stream audio."
+            playbackStatusMessage = errorMessage
             updateNowPlaying()
             return
         }
@@ -464,6 +479,11 @@ final class PlaybackManager: ObservableObject {
 
                 let headerData = Data(resolved.headersJson.utf8)
                 let headers = (try? JSONSerialization.jsonObject(with: headerData)) as? [String: String] ?? [:]
+                self.resolvedStreamInfo = [
+                    resolved.clientName,
+                    resolved.mimeType ?? "format tidak diketahui"
+                ].joined(separator: " • ")
+                self.playbackStatusMessage = "Stream ditemukan, memulai audio…"
                 self.resolveTask = nil
                 self.isResolving = false
                 self.startPlayer(
@@ -479,6 +499,7 @@ final class PlaybackManager: ObservableObject {
                 self.isResolving = false
                 self.isPlaying = false
                 self.errorMessage = "Gagal mengambil stream audio: \(MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Penyedia musik tidak dapat menyiapkan audio saat ini."))"
+                self.playbackStatusMessage = self.errorMessage
                 self.updateNowPlaying()
             }
         }
@@ -490,6 +511,7 @@ final class PlaybackManager: ObservableObject {
         headers: [String: String],
         resolvedProfileID: String? = nil
     ) {
+        playbackStatusMessage = "Menghubungkan ke pemutar audio…"
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
@@ -498,6 +520,7 @@ final class PlaybackManager: ObservableObject {
             pendingPlaybackStartTrackID = nil
             isPlaying = false
             errorMessage = "Tidak dapat mengaktifkan audio iOS: \(MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Periksa pengaturan audio perangkat lalu coba lagi."))"
+            playbackStatusMessage = errorMessage
             updateNowPlaying()
             return
         }
@@ -538,6 +561,7 @@ final class PlaybackManager: ObservableObject {
                 guard self.player?.currentItem === observedItem,
                       self.currentTrack?.id == track.id else { return }
                 self.errorMessage = "Pemutaran gagal: \(message)"
+                self.playbackStatusMessage = self.errorMessage
                 self.isPlaying = false
                 self.isBuffering = false
                 self.player?.pause()
@@ -559,11 +583,16 @@ final class PlaybackManager: ObservableObject {
                     }
                     self.isPlaying = true
                     self.isBuffering = false
+                    self.playbackStatusMessage = "Sedang diputar"
                 case .waitingToPlayAtSpecifiedRate:
                     self.isBuffering = true
+                    self.playbackStatusMessage = "Menunggu data audio…"
                 case .paused:
                     self.isPlaying = false
                     self.isBuffering = false
+                    if self.errorMessage == nil {
+                        self.playbackStatusMessage = "Dijeda"
+                    }
                 @unknown default:
                     self.isBuffering = false
                 }

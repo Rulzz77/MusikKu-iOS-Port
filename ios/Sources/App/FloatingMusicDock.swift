@@ -123,10 +123,17 @@ struct FloatingMusicDock: View {
                             .font(.caption)
                             .lineLimit(1)
                             .foregroundStyle(MusikKuStyle.secondary)
-                        if playback.isResolving || playback.isBuffering {
-                            Text(playback.isResolving ? "Mengambil stream…" : "Memuat audio…")
+                        if let error = playback.errorMessage {
+                            Text(error)
                                 .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(MusikKuStyle.accent)
+                                .foregroundStyle(.orange)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else if let status = playback.playbackStatusMessage, !status.isEmpty {
+                            Text(status)
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(playback.isResolving || playback.isBuffering ? MusikKuStyle.accent : MusikKuStyle.secondary)
+                                .lineLimit(1)
                         }
                     }
                     Spacer(minLength: 0)
@@ -146,7 +153,13 @@ struct FloatingMusicDock: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan" : ((playback.isPlaying || playback.isBuffering) ? "Jeda" : "Putar"))
+            .accessibilityLabel(
+                playback.isResolving
+                    ? "Batalkan pemuatan"
+                    : (playback.errorMessage != nil
+                        ? "Coba putar ulang"
+                        : ((playback.isPlaying || playback.isBuffering) ? "Jeda" : "Putar"))
+            )
 
             Button {
                 playback.playNext()

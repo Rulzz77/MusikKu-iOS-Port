@@ -161,6 +161,12 @@ struct NowPlayingView: View {
                     Text(track.artist)
                         .font(.subheadline)
                         .foregroundStyle(MusikKuStyle.secondary)
+                    if let source = playback.resolvedStreamInfo {
+                        Text("Sumber: \(source)")
+                            .font(.caption2)
+                            .foregroundStyle(MusikKuStyle.secondary)
+                            .lineLimit(1)
+                    }
                     if let album = track.album, !album.isEmpty {
                         Text(album)
                             .font(.caption)
