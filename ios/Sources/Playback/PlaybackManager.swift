@@ -328,7 +328,7 @@ final class PlaybackManager: ObservableObject {
             errorMessage = nil
             updateNowPlaying()
         } catch {
-            errorMessage = "Tidak dapat melanjutkan audio: \(error.localizedDescription)"
+            errorMessage = "Tidak dapat melanjutkan audio: \(MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Perangkat menolak permintaan audio."))"
         }
     }
 
@@ -478,7 +478,7 @@ final class PlaybackManager: ObservableObject {
                 self.resolveTask = nil
                 self.isResolving = false
                 self.isPlaying = false
-                self.errorMessage = "Gagal mengambil stream audio: \(error.localizedDescription)"
+                self.errorMessage = "Gagal mengambil stream audio: \(MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Penyedia musik tidak dapat menyiapkan audio saat ini."))"
                 self.updateNowPlaying()
             }
         }
@@ -497,7 +497,7 @@ final class PlaybackManager: ObservableObject {
         } catch {
             pendingPlaybackStartTrackID = nil
             isPlaying = false
-            errorMessage = "Tidak dapat mengaktifkan audio iOS: \(error.localizedDescription)"
+            errorMessage = "Tidak dapat mengaktifkan audio iOS: \(MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Periksa pengaturan audio perangkat lalu coba lagi."))"
             updateNowPlaying()
             return
         }
@@ -525,7 +525,7 @@ final class PlaybackManager: ObservableObject {
 
         itemStatusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] observedItem, _ in
             guard observedItem.status == .failed else { return }
-            let message = observedItem.error?.localizedDescription ?? "Sumber audio tidak dapat diputar."
+            let message = observedItem.error.map { MusikKuErrorMessage.indonesianMessage(for: $0, fallback: "Sumber audio tidak dapat diputar.") } ?? "Sumber audio tidak dapat diputar."
             Task { @MainActor in
                 guard let self else { return }
                 if let failedProfileID = resolvedProfileID,

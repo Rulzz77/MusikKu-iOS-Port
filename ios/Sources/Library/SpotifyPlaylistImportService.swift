@@ -342,7 +342,7 @@ actor SpotifyPlaylistImportService {
                 return SpotifyPlaylistImportEntry(
                     source: source,
                     matchedTrack: nil,
-                    lookupFailure: error.localizedDescription
+                    lookupFailure: MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Pencarian katalog untuk lagu ini gagal.")
                 )
             }
         }

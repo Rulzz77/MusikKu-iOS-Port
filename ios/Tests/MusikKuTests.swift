@@ -147,3 +147,22 @@ final class MusikKuErrorMessageTests: XCTestCase {
         )
     }
 }
+
+
+extension MusikKuErrorMessageTests {
+    func testMapsUnderlyingNetworkErrorFromPlayerFailure() {
+        let wrappedPlayerError = NSError(
+            domain: "AVFoundationErrorDomain",
+            code: -11800,
+            userInfo: [NSUnderlyingErrorKey: URLError(.timedOut)]
+        )
+
+        XCTAssertEqual(
+            MusikKuErrorMessage.indonesianMessage(
+                for: wrappedPlayerError,
+                fallback: "Sumber audio tidak dapat diputar."
+            ),
+            "Koneksi terlalu lama. Coba lagi."
+        )
+    }
+}
