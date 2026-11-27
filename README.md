@@ -20,8 +20,9 @@ The project is an actively developed iOS port, not yet a complete feature-equiva
 - Home shelf cards with artwork, titles, and artist/subtitle metadata.
 - Read-only browse detail sheets for album, artist, and playlist items from Search and Home, including the page header, first track list, and related shelves.
 - Add catalogue tracks from browse details to local playlists or favorites.
+- Initial iOS WEB_BOTGUARD token-provider integration using an isolated, non-persistent WKWebView and Ktor Darwin. It caches visitor-bound streaming tokens in memory and generates video-ID-bound player tokens without reading or attaching Google account cookies.
 
-Home, Search, and browse details retrieve catalogue metadata and artwork. Selecting Play hands a YouTube song/video ID to the KMP resolver, which attempts to extract a direct HTTPS audio URL and passes the required request headers to AVPlayer. Remote player config is cached on iOS and each extraction uses a client playback nonce. The resolver uses the same InnerTubeX version as Android. This first iOS resolver does not yet mint a browser PoToken or use Google account cookies, so some items may remain unavailable. UI wiring and a successful simulator build are not proof of audible playback; real-device playback still needs to be tested.
+Home, Search, and browse details retrieve catalogue metadata and artwork. Selecting Play hands a YouTube song/video ID to the KMP resolver, which attempts to extract a direct HTTPS audio URL and passes the required request headers to AVPlayer. Remote player config is cached on iOS and each extraction uses a client playback nonce. The resolver now supplies a platform token provider, but the WKWebView BotGuard flow still needs CI compilation and live iOS runtime verification. No account cookies are supplied. A working build or token-provider implementation is not proof of audible playback; real-device playback still needs to be tested.
 
 ## Requirements
 
@@ -56,7 +57,7 @@ open ios/MusikKu.xcodeproj
 ## Important limitations
 
 - Search is connected to the Android project's anonymous WEB_REMIX catalogue request shape, but service availability and response changes are controlled by the third-party endpoint.
-- Search/Home Play actions are wired to InnerTubeX and AVPlayer, but real audio playback has not yet been confirmed on a physical iPhone or simulator. The adapter still uses the default unavailable PoToken provider and does not attach Google account cookies; attestation-gated items may be rejected.
+- Search/Home Play actions are wired to InnerTubeX and AVPlayer, but real audio playback has not yet been confirmed on a physical iPhone or simulator. The new BotGuard provider is not yet confirmed against live challenges.
 - Background audio is declared and the AVAudioSession is configured, but it still needs physical-iPhone verification.
 - Local playlists and favorites are stored on the current device only; no login or cloud sync is implemented.
 - The project does not currently provide APK-style self-updates. iOS distribution uses TestFlight / App Store channels.
