@@ -47,6 +47,100 @@ struct LyricsTTMLFile: FileDocument {
     }
 }
 
+
+private struct LyricsLanguagePicker: View {
+    @Binding var selection: String
+
+    var body: some View {
+        Picker("Bahasa tujuan", selection: $selection) {
+            ForEach(LyricsTranslationTarget.all) { target in
+                LyricsLanguageOption(target: target)
+            }
+        }
+    }
+}
+
+private struct LyricsLanguageOption: View {
+    let target: LyricsTranslationTarget
+
+    var body: some View {
+        Text(target.title).tag(target.code)
+    }
+}
+
+private struct LyricsProviderPicker: View {
+    @Binding var selection: LyricsProvider
+
+    var body: some View {
+        Picker("Sumber lirik", selection: $selection) {
+            ForEach(LyricsProvider.allCases) { provider in
+                LyricsProviderOption(provider: provider)
+            }
+        }
+    }
+}
+
+private struct LyricsProviderOption: View {
+    let provider: LyricsProvider
+
+    var body: some View {
+        Text(provider.title).tag(provider)
+    }
+}
+
+private struct LyricsActionsMenu: View {
+    @Binding var translationTarget: String
+    @Binding var selectedProvider: LyricsProvider
+
+    let showingTranslation: Bool
+    let hasImportedTTML: Bool
+    let canTranslate: Bool
+    let canExport: Bool
+    let onTranslate: () -> Void
+    let onShowOriginal: () -> Void
+    let onImport: () -> Void
+    let onDeleteImported: () -> Void
+    let onExport: () -> Void
+
+    var body: some View {
+        Menu {
+            LyricsLanguagePicker(selection: $translationTarget)
+            LyricsProviderPicker(selection: $selectedProvider)
+
+            Button(action: onTranslate) {
+                Label("Terjemahkan lirik", systemImage: "translate")
+            }
+            .disabled(!canTranslate)
+
+            if showingTranslation {
+                Button(action: onShowOriginal) {
+                    Label("Tampilkan lirik asli", systemImage: "text.alignleft")
+                }
+            }
+
+            Divider()
+
+            Button(action: onImport) {
+                Label("Impor file TTML", systemImage: "square.and.arrow.down")
+            }
+
+            if hasImportedTTML {
+                Button(role: .destructive, action: onDeleteImported) {
+                    Label("Hapus TTML lokal", systemImage: "trash")
+                }
+            }
+
+            Button(action: onExport) {
+                Label("Ekspor ke TTML", systemImage: "square.and.arrow.up")
+            }
+            .disabled(!canExport)
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .accessibilityLabel("Menu lirik")
+    }
+}
+
 struct LyricsSheet: View {
     @EnvironmentObject private var playback: PlaybackManager
     @Environment(\.dismiss) private var dismiss
@@ -62,6 +156,7 @@ struct LyricsSheet: View {
     @State private var isImportingTTML = false
     @State private var isExportingTTML = false
     @State private var exportFile: LyricsTTMLFile?
+    @State private var hasImportedTTML = false
     @State private var translationTarget = UserDefaults.standard.string(forKey: "musikku.lyrics.translation-target.v1") ?? "id"
     @State private var selectedProvider = LyricsProvider(rawValue: UserDefaults.standard.string(forKey: "musikku.lyrics.provider.v1") ?? "") ?? .automatic
     @State private var isLoading = true
@@ -109,54 +204,29 @@ struct LyricsSheet: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Picker("Bahasa tujuan", selection: $translationTarget) {
-                            ForEach(LyricsTranslationTarget.all) { target in
-                                Text(target.title).tag(target.code)
-                            }
-                        }
-
-                        Picker("Sumber lirik", selection: $selectedProvider) {
-                            ForEach(LyricsProvider.allCases) { provider in
-                                Text(provider.title).tag(provider)
-                            }
-                        }
-                        Button {
+                    LyricsActionsMenu(
+                        translationTarget: $translationTarget,
+                        selectedProvider: $selectedProvider,
+                        showingTranslation: showingTranslation,
+                        hasImportedTTML: hasImportedTTML,
+                        canTranslate: document != nil && !isTranslating,
+                        canExport: document != nil && !isLoading,
+                        onTranslate: {
                             Task { await translateLyrics() }
-                        } label: {
-                            Label("Terjemahkan lirik", systemImage: "translate")
-                        }
-                        .disabled(document == nil || isTranslating)
-                        if showingTranslation {
-                            Button {
-                                showingTranslation = false
-                            } label: {
-                                Label("Tampilkan lirik asli", systemImage: "text.alignleft")
-                            }
-                        }
-                        Divider()
-                        Button {
+                        },
+                        onShowOriginal: {
+                            showingTranslation = false
+                        },
+                        onImport: {
                             isImportingTTML = true
-                        } label: {
-                            Label("Impor file TTML", systemImage: "square.and.arrow.down")
-                        }
-                        if hasImportedTTML {
-                            Button(role: .destructive) {
-                                Task { await removeImportedTTML() }
-                            } label: {
-                                Label("Hapus TTML lokal", systemImage: "trash")
-                            }
-                        }
-                        Button {
+                        },
+                        onDeleteImported: {
+                            Task { await removeImportedTTML() }
+                        },
+                        onExport: {
                             Task { await prepareTTMLExport() }
-                        } label: {
-                            Label("Ekspor ke TTML", systemImage: "square.and.arrow.up")
                         }
-                        .disabled(document == nil || isLoading)
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                    .accessibilityLabel("Menu lirik")
+                    )
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Tutup") { dismiss() }
@@ -419,7 +489,7 @@ struct LyricsSheet: View {
 
     @MainActor
     private func removeImportedTTML() async {
-        LyricsService.shared.deleteImportedTTML(trackID: track.id)
+        await LyricsService.shared.deleteImportedTTML(trackID: track.id)
         hasImportedTTML = false
         selectedProvider = .automatic
         translatedDocument = nil
