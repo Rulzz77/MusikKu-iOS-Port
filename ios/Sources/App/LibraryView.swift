@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LibraryView: View {
     @EnvironmentObject private var library: MusicLibraryStore
+    @EnvironmentObject private var playback: PlaybackManager
     @State private var section: LibrarySection = .playlists
     @State private var showingCreatePlaylist = false
     @State private var playlistName = ""
@@ -117,8 +118,15 @@ struct LibraryView: View {
             List {
                 ForEach(library.favorites) { track in
                     HStack(spacing: 12) {
-                        TrackLibraryRow(track: track)
+                        Button {
+                            playback.play(track)
+                        } label: {
+                            TrackLibraryRow(track: track)
+                        }
+                        .buttonStyle(.plain)
+
                         Spacer(minLength: 4)
+
                         Button {
                             library.toggleFavorite(track)
                         } label: {
@@ -179,6 +187,7 @@ private enum LibrarySection: Hashable {
 
 private struct PlaylistDetailView: View {
     @EnvironmentObject private var library: MusicLibraryStore
+    @EnvironmentObject private var playback: PlaybackManager
     let playlistID: UUID
 
     private var playlist: MusicPlaylist? {
@@ -202,9 +211,21 @@ private struct PlaylistDetailView: View {
                     .padding(24)
                 } else {
                     List {
-                        ForEach(playlist.tracks) { track in
-                            TrackLibraryRow(track: track)
-                                .listRowBackground(MusikKuStyle.surface)
+                        ForEach(Array(playlist.tracks.enumerated()), id: \.offset) { index, track in
+                            Button {
+                                playback.playQueue(playlist.tracks, startingAt: index)
+                            } label: {
+                                TrackLibraryRow(track: track)
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(MusikKuStyle.surface)
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    library.remove(track, from: playlistID)
+                                } label: {
+                                    Label("Hapus", systemImage: "trash")
+                                }
+                            }
                         }
                     }
                     .scrollContentBackground(.hidden)

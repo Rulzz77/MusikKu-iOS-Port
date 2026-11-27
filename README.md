@@ -4,13 +4,14 @@ This repository is the separate native iOS project for MusikKu. It does not modi
 
 ## Current status
 
-The project is an actively developed iOS port, not yet a complete feature-equivalent release. The first UI/library milestone contains:
+The project is an actively developed iOS port, not yet a complete feature-equivalent release. The current development branch contains:
 
 - SwiftUI tabs: Beranda, Cari, and Koleksi.
-- Local playlist creation/deletion and a local favorites store.
-- AVPlayer queue foundation, including enqueue, next/previous, and automatic advance.
+- Local playlist creation, deletion, track removal, and favorites.
+- Playback from local playlist/favorite entries once they contain a valid authorized stream URL.
+- An AVPlayer queue foundation with enqueue, removal, next/previous, shuffle, repeat-one, and automatic advance.
+- A mini-player and full Now Playing screen with artwork, seeking, favorite, playlist, and queue controls.
 - Lock-screen / Control Center transport commands and audio-interruption handling.
-- XcodeGen project generation and a macOS GitHub Actions Simulator build.
 
 The search screen intentionally shows that the catalog is not connected yet. No production catalog, stream resolver, account provider, or lyric provider is included at this stage.
 

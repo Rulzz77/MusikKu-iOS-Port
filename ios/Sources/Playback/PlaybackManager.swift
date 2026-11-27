@@ -9,9 +9,13 @@ final class PlaybackManager: ObservableObject {
     @Published private(set) var position: Double = 0
     @Published private(set) var duration: Double = 0
     @Published private(set) var queue: [MusicTrack] = []
+    @Published private(set) var isShuffleEnabled = false
+    @Published private(set) var isRepeatEnabled = false
     @Published var errorMessage: String?
 
     private var currentQueueIndex: Int?
+    var currentQueueTrackIndex: Int? { currentQueueIndex }
+
     private var player: AVPlayer?
     private var timeObserver: Any?
     private var observedPlayer: AVPlayer?
@@ -35,8 +39,13 @@ final class PlaybackManager: ObservableObject {
         guard !tracks.isEmpty else {
             queue = []
             currentQueueIndex = nil
-            pause()
+            player?.pause()
+            detachPlaybackObservers()
+            player = nil
             currentTrack = nil
+            isPlaying = false
+            position = 0
+            duration = 0
             updateNowPlaying()
             return
         }
@@ -53,6 +62,36 @@ final class PlaybackManager: ObservableObject {
             return
         }
         queue.append(track)
+    }
+
+    func removeQueueItem(at index: Int) {
+        guard queue.indices.contains(index) else { return }
+
+        let removedCurrentItem = index == currentQueueIndex
+        queue.remove(at: index)
+
+        guard !queue.isEmpty else {
+            playQueue([])
+            return
+        }
+
+        guard let currentQueueIndex else { return }
+
+        if index < currentQueueIndex {
+            self.currentQueueIndex = currentQueueIndex - 1
+        } else if removedCurrentItem {
+            let nextIndex = min(index, queue.count - 1)
+            self.currentQueueIndex = nextIndex
+            startTrack(queue[nextIndex])
+        }
+    }
+
+    func toggleShuffle() {
+        isShuffleEnabled.toggle()
+    }
+
+    func toggleRepeat() {
+        isRepeatEnabled.toggle()
     }
 
     func togglePlayback() {
@@ -80,8 +119,17 @@ final class PlaybackManager: ObservableObject {
 
     func playNext() {
         guard let currentQueueIndex else { return }
-        let nextIndex = currentQueueIndex + 1
-        guard queue.indices.contains(nextIndex) else {
+
+        let nextIndex: Int?
+        if isShuffleEnabled, queue.count > 1 {
+            let candidates = queue.indices.filter { $0 != currentQueueIndex }
+            nextIndex = candidates.randomElement()
+        } else {
+            let candidate = currentQueueIndex + 1
+            nextIndex = queue.indices.contains(candidate) ? candidate : nil
+        }
+
+        guard let nextIndex else {
             pause()
             return
         }
@@ -111,9 +159,20 @@ final class PlaybackManager: ObservableObject {
         updateNowPlaying()
     }
 
+    private func handleTrackEnded() {
+        if isRepeatEnabled {
+            seek(to: 0)
+            resume()
+        } else {
+            playNext()
+        }
+    }
+
     private func startTrack(_ track: MusicTrack) {
         player?.pause()
         detachPlaybackObservers()
+        player = nil
+        isPlaying = false
 
         currentTrack = track
         position = 0
@@ -151,7 +210,7 @@ final class PlaybackManager: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.playNext()
+                self?.handleTrackEnded()
             }
         }
 
