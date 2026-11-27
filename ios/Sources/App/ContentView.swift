@@ -39,8 +39,8 @@ struct ContentView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .onChange(of: playback.currentTrack?.id) { newID in
-            guard newID != nil, let track = playback.currentTrack else { return }
+        .onChange(of: playback.playbackStartID) { _ in
+            guard let track = playback.currentTrack else { return }
             library.recordPlay(track)
         }
         .preferredColorScheme(.dark)

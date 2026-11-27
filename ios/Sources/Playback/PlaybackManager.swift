@@ -7,6 +7,7 @@ import MusikKuResolverKit
 @MainActor
 final class PlaybackManager: ObservableObject {
     @Published private(set) var currentTrack: MusicTrack?
+    @Published private(set) var playbackStartID = UUID()
     @Published private(set) var isPlaying = false
     @Published private(set) var position: Double = 0
     @Published private(set) var duration: Double = 0
@@ -362,6 +363,7 @@ final class PlaybackManager: ObservableObject {
         }
 
         nextPlayer.play()
+        playbackStartID = UUID()
         isPlaying = true
         updateNowPlaying()
     }

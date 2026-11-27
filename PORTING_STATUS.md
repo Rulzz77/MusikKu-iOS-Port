@@ -14,7 +14,8 @@ Implemented in the current development branch:
 - Lock-screen / Control Center play, pause, next, previous, seek, and asynchronously loaded artwork.
 - Audio interruption and headphone-removal pause handling.
 - Read-only YouTube Music search using the Android repository's anonymous WEB_REMIX request pattern, client identity, and filter parameters.
-- Search continuation paging, local recent-search history, and Home-feed continuation paging.
+- Search continuation paging, local recent-search history, debounced YouTube Music query suggestions, Home-feed continuation paging, and album/playlist/category browse continuation paging.
+- Listening counts are recorded when AVPlayer actually starts a resolved stream, rather than when a track is merely selected.
 - Search filters for all, songs, videos, albums, artists, and playlists.
 - First-page Home feed from `FEmusic_home`, plus album/artist/playlist browse details and local collection actions.
 - Lyrics providers: lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato, and LRCLIB fallback; TTML supports line, word, and syllable timing.

@@ -12,6 +12,8 @@ struct SearchView: View {
     @State private var continuationToken: String?
     @State private var isLoadingMore = false
     @State private var paginationError: String?
+    @State private var suggestions: [String] = []
+    @State private var isLoadingSuggestions = false
     @State private var selectedBrowseItem: CatalogItem?
     @FocusState private var searchFieldFocused: Bool
 
@@ -23,10 +25,14 @@ struct SearchView: View {
                     .padding(.top, 12)
                     .padding(.bottom, 12)
 
-                filterPicker
-                    .padding(.bottom, 12)
+                if !showingSuggestions {
+                    filterPicker
+                        .padding(.bottom, 12)
+                }
 
-                if isLoading {
+                if showingSuggestions {
+                    suggestionList
+                } else if isLoading {
                     ProgressView("Mencari katalog MusikKu…")
                         .tint(MusikKuStyle.accent)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -46,6 +52,16 @@ struct SearchView: View {
                 }
             }
             .background(MusikKuStyle.background.ignoresSafeArea())
+            .task(id: query) {
+                await loadSuggestions(for: query)
+            }
+            .onChange(of: query) { _ in
+                hasSearched = false
+                errorMessage = nil
+                paginationError = nil
+                continuationToken = nil
+                results = []
+            }
             .navigationTitle("Cari Musik")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -71,6 +87,77 @@ struct SearchView: View {
                     .presentationDragIndicator(.visible)
             }
         }
+    }
+
+    private var showingSuggestions: Bool {
+        searchFieldFocused &&
+        !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !suggestions.isEmpty &&
+        !hasSearched
+    }
+
+    private var suggestionList: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(suggestions, id: \.self) { suggestion in
+                    Button {
+                        query = suggestion
+                        searchFieldFocused = false
+                        Task { await performSearch() }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.subheadline)
+                                .foregroundStyle(MusikKuStyle.secondary)
+                            Text(suggestion)
+                                .font(.subheadline)
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
+                            Spacer()
+                            Image(systemName: "arrow.up.left")
+                                .font(.caption)
+                                .foregroundStyle(MusikKuStyle.secondary)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 14)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Rectangle()
+                        .fill(MusikKuStyle.outline.opacity(0.35))
+                        .frame(height: 0.5)
+                        .padding(.leading, 48)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func loadSuggestions(for rawQuery: String) async {
+        let trimmed = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard searchFieldFocused, trimmed.count >= 2, !hasSearched else {
+            suggestions = []
+            isLoadingSuggestions = false
+            return
+        }
+
+        do {
+            try await Task.sleep(nanoseconds: 320_000_000)
+            try Task.checkCancellation()
+            isLoadingSuggestions = true
+            defer { isLoadingSuggestions = false }
+            let result = try await MusicCatalogService.shared.searchSuggestions(input: trimmed)
+            try Task.checkCancellation()
+            guard query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed,
+                  !hasSearched else { return }
+            suggestions = result
+        } catch is CancellationError {
+            // A newer query superseded this suggestion request.
+        } catch {
+            suggestions = []
+        }
+        isLoadingSuggestions = false
     }
 
     private var searchBar: some View {
@@ -308,6 +395,8 @@ struct SearchView: View {
         continuationToken = nil
         results = []
         hasSearched = true
+        suggestions = []
+        searchFieldFocused = false
         defer { isLoading = false }
 
         do {

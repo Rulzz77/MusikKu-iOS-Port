@@ -157,6 +157,68 @@ actor MusicCatalogService {
         .uniqued(by: { "\($0.kind.rawValue):\($0.id)" })
     }
 
+    func searchSuggestions(input rawInput: String) async throws -> [String] {
+        let input = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard input.count >= 2 else { return [] }
+
+        let locale = Locale.current
+        let language = locale.language.languageCode?.identifier ?? "en"
+        let region = locale.region?.identifier ?? "US"
+        let clientVersion = await resolveClientVersion()
+        let client: [String: Any] = [
+            "clientName": "WEB_REMIX",
+            "clientVersion": clientVersion,
+            "hl": language,
+            "gl": region,
+            "utcOffsetMinutes": TimeZone.current.secondsFromGMT() / 60
+        ]
+        let body: [String: Any] = [
+            "context": [
+                "client": client,
+                "user": ["lockedSafetyMode": false],
+                "request": ["useSsl": true]
+            ],
+            "input": input
+        ]
+
+        guard let url = URL(string: "\(musicOrigin)/youtubei/v1/music/get_search_suggestions") else {
+            throw MusicCatalogError.invalidURL
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 12
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(language, forHTTPHeaderField: "Accept-Language")
+        request.setValue(musicOrigin, forHTTPHeaderField: "Origin")
+        request.setValue(musicOrigin, forHTTPHeaderField: "X-Origin")
+        request.setValue("\(musicOrigin)/", forHTTPHeaderField: "Referer")
+        request.setValue("67", forHTTPHeaderField: "X-YouTube-Client-Name")
+        request.setValue(clientVersion, forHTTPHeaderField: "X-YouTube-Client-Version")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+
+        let root = try await sendJSON(request)
+        var seen = Set<String>()
+        return Self.collectRenderers(root, named: "searchSuggestionRenderer")
+            .compactMap { renderer -> String? in
+                let endpointQuery = Self.nested(
+                    renderer,
+                    "navigationEndpoint",
+                    "searchEndpoint",
+                    "query"
+                ) as? String
+                let displayText = Self.runsText(renderer["suggestion"])
+                let suggestion = (endpointQuery ?? displayText)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !suggestion.isEmpty,
+                      seen.insert(suggestion.lowercased()).inserted else { return nil }
+                return suggestion
+            }
+            .prefix(8)
+            .map { $0 }
+    }
+
     func browsePage(browseID: String, params: String? = nil) async throws -> CatalogBrowsePage {
         let locale = Locale.current
         let language = locale.language.languageCode?.identifier ?? "en"
