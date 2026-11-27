@@ -1,6 +1,7 @@
 package id.musikku.resolver
 
 import com.metrolist.innertubex.InnerTube
+import com.metrolist.innertubex.cipher.PlayerConfigRepository
 import com.metrolist.innertubex.cipher.RemotePlayerConfigStore
 import com.metrolist.innertubex.cipher.YouTubeCipherService
 import com.metrolist.innertubex.extraction.AudioQuality
@@ -27,7 +28,7 @@ class MusikKuAudioResolver {
     private val innerTube = InnerTube(httpClient)
     private val configStore = RemotePlayerConfigStore(
         httpClient = httpClient,
-        repository = PlatformPlayerConfigRepository()
+        repository = createPlatformPlayerConfigRepository()
     )
     private val cipherService = YouTubeCipherService(httpClient, configStore)
     private val configParser = YtConfigParserImpl(httpClient, innerTube, configStore)
@@ -129,3 +130,5 @@ data class ResolvedAudioStream(
 )
 
 internal expect fun createResolverHttpClient(): HttpClient
+
+internal expect fun createPlatformPlayerConfigRepository(): PlayerConfigRepository
