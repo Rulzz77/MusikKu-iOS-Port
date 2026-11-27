@@ -56,6 +56,7 @@ struct HomeView: View {
                     }
                 }
                 .padding(20)
+                .padding(.bottom, 28)
             }
             .background(MusikKuStyle.background.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
@@ -68,6 +69,7 @@ struct HomeView: View {
                     .presentationDragIndicator(.visible)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var homeFeedContent: some View {

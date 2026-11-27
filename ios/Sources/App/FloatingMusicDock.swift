@@ -33,7 +33,7 @@ struct FloatingMusicDock: View {
     let onOpenPlayer: () -> Void
 
     var body: some View {
-        VStack(spacing: 9) {
+        VStack(spacing: 7) {
             if let track = playback.currentTrack {
                 nowPlayingAccessory(track)
                 Rectangle()
@@ -79,7 +79,23 @@ struct FloatingMusicDock: View {
         .padding(.top, 10)
         .padding(.bottom, 7)
         .frame(maxWidth: 560)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 29, style: .continuous))
+        .background {
+            RoundedRectangle(cornerRadius: 29, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 29, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    MusikKuStyle.surface.opacity(0.97),
+                                    MusikKuStyle.background.opacity(0.96)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+        }
         .overlay {
             RoundedRectangle(cornerRadius: 29, style: .continuous)
                 .stroke(.white.opacity(0.13), lineWidth: 1)

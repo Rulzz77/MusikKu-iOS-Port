@@ -22,6 +22,7 @@ struct ContentView: View {
                 LibraryView(onSearch: { isShowingSearch = true })
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(MusikKuStyle.background.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             FloatingMusicDock(

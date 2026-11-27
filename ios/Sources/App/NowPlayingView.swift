@@ -65,7 +65,8 @@ struct NowPlayingView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            Group {
+            ScrollView(.vertical) {
+                Group {
                 if let track = playback.currentTrack {
                     playerContent(for: track, availableWidth: geometry.size.width)
                 } else {
@@ -75,8 +76,10 @@ struct NowPlayingView: View {
                         symbol: "music.note"
                     )
                 }
+                }
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .center)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .scrollIndicators(.hidden)
             .background(MusikKuStyle.background.ignoresSafeArea())
         }
         .sheet(isPresented: $isShowingQueue) {
@@ -106,7 +109,7 @@ struct NowPlayingView: View {
     }
 
     private func playerContent(for track: MusicTrack, availableWidth: CGFloat) -> some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 18) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("SEDANG DIPUTAR")
@@ -139,13 +142,13 @@ struct NowPlayingView: View {
                 }
                 .accessibilityLabel("Buka antrean lagu")
             }
-            .padding(.top, 18)
+            .padding(.top, 12)
 
             Spacer(minLength: 0)
 
             ArtworkView(track: track, cornerRadius: 24)
                 .frame(
-                    width: min(max(availableWidth - 52, 180), 340),
+                    width: min(max(availableWidth - 52, 176), 320),
                     height: min(max(availableWidth - 52, 180), 340)
                 )
                 .shadow(color: .black.opacity(0.35), radius: 24, y: 12)
@@ -301,8 +304,8 @@ struct NowPlayingView: View {
 
             Spacer(minLength: 8)
         }
-        .padding(.horizontal, 25)
-        .padding(.bottom, 18)
+        .padding(.horizontal, 22)
+        .padding(.bottom, 16)
     }
 
     private func emptyState(title: String, message: String, symbol: String) -> some View {
