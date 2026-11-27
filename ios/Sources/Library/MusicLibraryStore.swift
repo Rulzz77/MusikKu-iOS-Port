@@ -177,6 +177,11 @@ final class MusicLibraryStore: ObservableObject {
         persist()
     }
 
+    func removeHistoryEntry(trackID: String) {
+        listeningHistory.removeAll { $0.track.id == trackID }
+        persist()
+    }
+
     /// Flushes sub-10-second listening progress before a track switch or app suspension.
     func flushListeningStats() {
         persist()

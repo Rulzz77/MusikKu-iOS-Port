@@ -163,7 +163,7 @@ struct LyricsSheet: View {
                 }
             }
         }
-        .task(id: track.id) {
+        .task(id: "\(track.id)|\(selectedProvider.rawValue)") {
             await loadLyrics()
         }
         .onChange(of: translationTarget) { newValue in
@@ -174,7 +174,6 @@ struct LyricsSheet: View {
 
         .onChange(of: selectedProvider) { newValue in
             UserDefaults.standard.set(newValue.rawValue, forKey: "musikku.lyrics.provider.v1")
-            Task { await loadLyrics() }
         }
         .fileImporter(
             isPresented: $isImportingTTML,

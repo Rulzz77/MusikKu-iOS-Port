@@ -378,6 +378,7 @@ struct ArtworkView: View {
 private struct QueueSheet: View {
     @EnvironmentObject private var playback: PlaybackManager
     @Environment(\.dismiss) private var dismiss
+    @State private var showingClearConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -451,8 +452,33 @@ private struct QueueSheet: View {
                     EditButton()
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button(role: .destructive) {
+                            showingClearConfirmation = true
+                        } label: {
+                            Label("Kosongkan antrean", systemImage: "trash")
+                        }
+                        .disabled(playback.queue.isEmpty)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("Aksi antrean")
+                }
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Selesai") { dismiss() }
                 }
+            }
+            .confirmationDialog(
+                "Kosongkan antrean?",
+                isPresented: $showingClearConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Kosongkan antrean", role: .destructive) {
+                    playback.playQueue([])
+                }
+                Button("Batal", role: .cancel) {}
+            } message: {
+                Text("Semua lagu akan dihapus dari antrean dan pemutaran dihentikan.")
             }
         }
     }

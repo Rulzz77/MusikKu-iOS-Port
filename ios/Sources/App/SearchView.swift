@@ -329,23 +329,37 @@ struct SearchView: View {
                         .foregroundStyle(MusikKuStyle.secondary)
                 }
                 ForEach(library.recentSearches, id: \.self) { recent in
-                    Button {
-                        query = recent
-                        Task { await performSearch() }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .foregroundStyle(MusikKuStyle.secondary)
-                            Text(recent)
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            Image(systemName: "arrow.up.left")
-                                .foregroundStyle(MusikKuStyle.secondary)
+                    HStack(spacing: 10) {
+                        Button {
+                            query = recent
+                            Task { await performSearch() }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .foregroundStyle(MusikKuStyle.secondary)
+                                Text(recent)
+                                    .foregroundStyle(.primary)
+                                Spacer(minLength: 0)
+                                Image(systemName: "arrow.up.left")
+                                    .foregroundStyle(MusikKuStyle.secondary)
+                            }
+                            .padding(.vertical, 9)
+                            .contentShape(Rectangle())
                         }
-                        .padding(.vertical, 7)
-                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
+
+                        Button {
+                            library.removeSearch(recent)
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(MusikKuStyle.secondary)
+                                .frame(width: 30, height: 34)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Hapus pencarian \(recent)")
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(20)

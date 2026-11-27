@@ -6,6 +6,7 @@ struct LibraryView: View {
     @State private var section: LibrarySection = .playlists
     @State private var showingCreatePlaylist = false
     @State private var showingCreateSmartPlaylist = false
+    @State private var showingClearHistoryConfirmation = false
     @State private var playlistName = ""
     let onSearch: () -> Void
 
@@ -61,6 +62,13 @@ struct LibraryView: View {
                         }
                         .accessibilityLabel("Buat Mix Cerdas")
                     }
+                } else if section == .history && !library.listeningHistory.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Bersihkan", role: .destructive) {
+                            showingClearHistoryConfirmation = true
+                        }
+                        .font(.caption)
+                    }
                 }
             }
             .alert("Buat playlist baru", isPresented: $showingCreatePlaylist) {
@@ -90,6 +98,18 @@ struct LibraryView: View {
                 }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+            }
+            .confirmationDialog(
+                "Hapus seluruh riwayat pemutaran?",
+                isPresented: $showingClearHistoryConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Hapus riwayat", role: .destructive) {
+                    library.clearHistory()
+                }
+                Button("Batal", role: .cancel) {}
+            } message: {
+                Text("Daftar lagu dan statistik waktu dengar di perangkat ini akan dihapus.")
             }
         }
     }
@@ -236,6 +256,13 @@ struct LibraryView: View {
                         }
                         .buttonStyle(.plain)
                         .listRowBackground(MusikKuStyle.surface)
+                        .swipeActions {
+                            Button(role: .destructive) {
+                                library.removeHistoryEntry(trackID: entry.track.id)
+                            } label: {
+                                Label("Hapus", systemImage: "trash")
+                            }
+                        }
                     }
                 }
                 .listStyle(.plain)
