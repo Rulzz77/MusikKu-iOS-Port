@@ -1044,8 +1044,14 @@ private enum TTMLPiece {
 }
 
 private final class TTMLLineParser: NSObject, XMLParserDelegate {
+    private static let maximumDepth = 64
+    private static let maximumNodes = 20_000
+    private static let maximumTextBytes = 1_024 * 1_024
+
     private var roots: [TTMLNode] = []
     private var stack: [TTMLNode] = []
+    private var nodeCount = 0
+    private var textByteCount = 0
 
     var lines: [LyricsLine] {
         Self.collectParagraphs(from: roots)
@@ -1069,6 +1075,12 @@ private final class TTMLLineParser: NSObject, XMLParserDelegate {
         qualifiedName qName: String?,
         attributes attributeDict: [String: String] = [:]
     ) {
+        guard stack.count < Self.maximumDepth, nodeCount < Self.maximumNodes else {
+            parser.abortParsing()
+            return
+        }
+        nodeCount += 1
+
         let node = TTMLNode(name: elementName, attributes: attributeDict)
         if let parent = stack.last {
             parent.children.append(.element(node))
@@ -1079,12 +1091,41 @@ private final class TTMLLineParser: NSObject, XMLParserDelegate {
     }
 
     func parser(_ parser: XMLParser, foundCharacters string: String) {
+        let size = string.utf8.count
+        guard textByteCount <= Self.maximumTextBytes - size else {
+            parser.abortParsing()
+            return
+        }
+        textByteCount += size
         stack.last?.children.append(.text(string))
     }
 
     func parser(_ parser: XMLParser, foundCDATA CDATABlock: Data) {
         guard let value = String(data: CDATABlock, encoding: .utf8) else { return }
+        guard textByteCount <= Self.maximumTextBytes - CDATABlock.count else {
+            parser.abortParsing()
+            return
+        }
+        textByteCount += CDATABlock.count
         stack.last?.children.append(.text(value))
+    }
+
+    // TTML does not require DTDs or custom entities; reject them to avoid entity-expansion payloads.
+    func parser(
+        _ parser: XMLParser,
+        foundInternalEntityDeclarationWithName name: String,
+        value: String?
+    ) {
+        parser.abortParsing()
+    }
+
+    func parser(
+        _ parser: XMLParser,
+        foundExternalEntityDeclarationWithName name: String,
+        publicID: String?,
+        systemID: String?
+    ) {
+        parser.abortParsing()
     }
 
     func parser(
