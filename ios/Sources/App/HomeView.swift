@@ -96,12 +96,15 @@ struct HomeView: View {
             } else {
                 ForEach(homeShelves) { shelf in
                     CatalogHomeShelfSection(shelf: shelf) { item in
-                        guard item.browseID != nil else { return }
-                        selectedHomeBrowseItem = item
+                        if item.canSaveAsTrack {
+                            playback.play(item.asMusicTrack())
+                        } else if item.browseID != nil {
+                            selectedHomeBrowseItem = item
+                        }
                     }
                 }
 
-                Text("Katalog menampilkan metadata dan sampul. Pemutaran lagu akan aktif setelah resolver audio iOS terhubung.")
+                Text("Ketuk lagu untuk mencoba memutarnya melalui pemutar MusikKu. Ketersediaan audio bergantung pada penyedia musik.")
                     .font(.caption)
                     .foregroundStyle(MusikKuStyle.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -174,7 +177,7 @@ struct HomeView: View {
             Text("Musik akan muncul di sini")
                 .font(.title3.bold())
 
-            Text("Fondasi aplikasi sudah siap. Katalog perlu dihubungkan ke penyedia musik yang mengizinkan streaming di aplikasi iOS.")
+            Text("Cari lagu untuk melihat katalog, lalu gunakan tombol putar untuk mencoba streaming audio.")
                 .font(.subheadline)
                 .foregroundStyle(MusikKuStyle.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -226,7 +229,7 @@ struct HomeView: View {
                     Text(playback.currentTrack?.title ?? "Belum ada lagu")
                         .font(.headline)
                         .lineLimit(1)
-                    Text(playback.currentTrack?.artist ?? "Pilih lagu dari katalog saat tersedia")
+                    Text(playback.currentTrack?.artist ?? "Cari lagu dan tekan ikon putar")
                         .font(.subheadline)
                         .foregroundStyle(MusikKuStyle.secondary)
                         .lineLimit(2)
@@ -411,7 +414,7 @@ private struct CatalogHomeItemCard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(item.browseID == nil)
+        .disabled(!item.canSaveAsTrack && item.browseID == nil)
         .accessibilityElement(children: .combine)
     }
 
