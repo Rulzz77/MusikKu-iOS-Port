@@ -164,6 +164,22 @@ jobs:
             exit 1
           fi
 
+          # Verify release metadata and legal texts survive XcodeGen resource packaging.
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$APP_PATH/Info.plist" >/dev/null
+          test -s "$APP_PATH/PrivacyInfo.xcprivacy"
+          test -s "$APP_PATH/Assets.car"
+          for LEGAL_FILE in GPL-3.0.txt THIRD_PARTY_NOTICES.md; do
+            if [[ -s "$APP_PATH/$LEGAL_FILE" ]]; then
+              continue
+            fi
+            if [[ -s "$APP_PATH/Legal/$LEGAL_FILE" ]]; then
+              continue
+            fi
+            echo "::error::Bundled legal document is missing: $LEGAL_FILE"
+            exit 1
+          done
+          echo "AppIcon metadata, Privacy Manifest, asset catalog and legal notices are present in MusikKu.app."
+
           BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
 
           cleanup() {
