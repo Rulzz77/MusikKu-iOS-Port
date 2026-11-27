@@ -44,7 +44,7 @@ References:
 
 ## Distribution obligations
 
-The repository includes GPL-3.0-licensed derivative code and third-party notices. Before distributing binaries, confirm the applicable GPL-3.0 source, license, attribution and corresponding-source obligations are met for the exact source and binary being distributed. Include the source location and notices with the release materials.
+The repository includes GPL-3.0-licensed derivative code and third-party notices. Review [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md), including InnerTubeX, QuackJS and Ktor. Before distributing binaries, confirm the applicable GPL-3.0 source, license, attribution, corresponding-source and (where applicable) installation-information obligations are met for the exact source and binary being distributed. Include the source location and notices with the release materials.
 
 ## Current distribution status
 
