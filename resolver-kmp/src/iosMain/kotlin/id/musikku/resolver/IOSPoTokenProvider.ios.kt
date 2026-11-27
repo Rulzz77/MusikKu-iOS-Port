@@ -9,6 +9,7 @@ import com.metrolist.innertubex.extraction.potoken.u8ToBase64
 import com.metrolist.innertubex.extraction.strategy.PoTokenProviderKind
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.darwin.Darwin
+import io.ktor.client.engine.darwin.configureSession
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -61,7 +62,7 @@ private class IOSPoTokenProvider : TokenProvider {
     private val httpClient = HttpClient(Darwin) {
         expectSuccess = false
         followRedirects = false
-        install(HttpTimeout) {
+        engine {\n            // BotGuard requests must never inherit or persist Google account cookies.\n            configureSession {\n                HTTPCookieStorage = null\n                HTTPShouldSetCookies = false\n            }\n        }\n        install(HttpTimeout) {
             requestTimeoutMillis = 30_000
             connectTimeoutMillis = 15_000
             socketTimeoutMillis = 30_000
