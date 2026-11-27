@@ -32,10 +32,12 @@ class MusikKuAudioResolver {
     )
     private val cipherService = YouTubeCipherService(httpClient, configStore)
     private val configParser = YtConfigParserImpl(httpClient, innerTube, configStore)
+    private val tokenProvider = createPlatformTokenProvider()
     private val extractor = InnerTubeExtractor(
         configParser = configParser,
         cipherService = cipherService,
-        innerTube = innerTube
+        innerTube = innerTube,
+        tokenProvider = tokenProvider
     )
 
     /**
@@ -58,9 +60,8 @@ class MusikKuAudioResolver {
      * Resolves a YouTube Music video ID to a direct HTTPS audio URL and the
      * request headers required by its selected playback client.
      *
-     * This method does not use an account cookie and does not mint a PoToken.
-     * When YouTube requires a platform attestation token, extraction can fail;
-     * the iOS host must then show a retry/unsupported message.
+     * The iOS host may mint short-lived WEB_BOTGUARD tokens in an isolated
+     * WKWebView session. No Google account cookie is attached to the request.
      */
     @Throws(Exception::class)
     suspend fun resolve(
@@ -121,6 +122,13 @@ class MusikKuAudioResolver {
     fun close() {
         innerTube.close()
         httpClient.close()
+    }
+
+    /** Closes the attestation runtime and its isolated WebKit session. */
+    @Throws(Exception::class)
+    suspend fun closeAsync() {
+        tokenProvider.close()
+        close()
     }
 }
 
