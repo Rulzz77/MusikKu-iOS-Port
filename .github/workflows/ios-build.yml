@@ -25,7 +25,7 @@ on:
 # Keep only the newest validation for a pull request/branch.
 concurrency:
   # A push and pull_request synchronize event for the same branch share one slot.
-  group: ios-simulator-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: ios-simulator-ui-v2-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -34,6 +34,7 @@ permissions:
 jobs:
   ios-simulator:
     runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
