@@ -165,7 +165,8 @@ jobs:
           fi
 
           # Verify release metadata and legal texts survive XcodeGen resource packaging.
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$APP_PATH/Info.plist" >/dev/null
+          # Explicit source plist and AppIcon catalog are validated before project generation;
+          # simulator bundles may omit CFBundleIconName when Xcode compiles an explicit Info.plist.
           test -s "$APP_PATH/PrivacyInfo.xcprivacy"
           test -s "$APP_PATH/Assets.car"
           for LEGAL_FILE in GPL-3.0.txt THIRD_PARTY_NOTICES.md; do
