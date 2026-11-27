@@ -51,6 +51,7 @@ import kotlin.time.Instant
  */
 internal actual fun createPlatformTokenProvider(): TokenProvider = IOSPoTokenProvider()
 
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 private class IOSPoTokenProvider : TokenProvider {
     override val capabilities = TokenProviderCapabilities(
         providers = setOf(PoTokenProviderKind.WEB_BOTGUARD),
