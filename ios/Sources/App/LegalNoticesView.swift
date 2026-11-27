@@ -114,7 +114,8 @@ private struct BundledLegalDocumentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             guard documentText.isEmpty, !loadFailed,
-                  let url = Bundle.main.url(forResource: resourceName, withExtension: fileExtension),
+                  let url = Bundle.main.url(forResource: resourceName, withExtension: fileExtension)
+                    ?? Bundle.main.url(forResource: resourceName, withExtension: fileExtension, subdirectory: "Legal"),
                   let value = try? String(contentsOf: url, encoding: .utf8) else {
                 loadFailed = true
                 return

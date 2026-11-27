@@ -21,7 +21,8 @@ targets:
     resources:
       - path: Resources/Assets.xcassets
       - path: Resources/PrivacyInfo.xcprivacy
-      - path: Resources/Legal
+      - path: Resources/Legal/GPL-3.0.txt
+      - path: Resources/Legal/THIRD_PARTY_NOTICES.md
       - path: Support/LaunchScreen.storyboard
     info:
       path: Support/Info.plist
