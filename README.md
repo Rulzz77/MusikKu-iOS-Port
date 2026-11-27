@@ -6,7 +6,7 @@ This repository contains the separate native iOS project for MusikKu. It does no
 
 The native iOS port now follows Android's main navigation and several core workflows, but it is **not yet fully feature-equivalent or release-ready**.
 
-Merged into `main` by PR #1 (squash commit `fe5b6e6`):
+Core native iOS implementation was merged by PR #1 (squash commit `fe5b6e6`); CI/release-pipeline fixes were merged by PR #2 (squash commit `94fb21a`).
 
 - SwiftUI tabs for Beranda, Explore and Koleksi, with global search and a floating translucent dock combining mini-player and navigation.
 - Android-aligned dark palette, mood/genre Explore grid, category detail and Home feed shelves.
@@ -37,7 +37,7 @@ GitHub Actions builds the InnerTubeX iOS XCFramework, generates the Xcode projec
 
 The unsigned IPA is for personal device testing with Sideloadly, not an App Store/TestFlight signed release. The Appetize ZIP is an iOS Simulator build; Appetize does not accept the IPA, and Appetize's iOS simulator does not provide audible audio output.
 
-The post-merge build [run #176](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/46016179731) is validating the merged source and remains pending. The configured version is **0.1.0 (Build 1)**. No GitHub Release or signed binary has been published. Even after CI passes, live Webpage Attestation, PoToken generation, YouTube stream extraction and audible playback must be verified on a physical iPhone before release. See [Release Readiness](docs/RELEASE_READINESS.md) for signing, privacy, licensing and content-rights requirements. A [Privacy Policy draft](PRIVACY_POLICY.md) has been prepared, but it still contains contact/identity placeholders and must be reviewed and published before release.
+The current development version is **0.1.1 (Build 2)**. PR #2 merged the CI validation-order and simulator smoke-check corrections. A fresh main-branch CI run is validating the merged pipeline and version bump; build artifacts are not yet confirmed. No GitHub Release or signed binary has been published. Even after CI passes, live Webpage Attestation, PoToken generation, YouTube stream extraction and audible playback must be verified on a physical iPhone before release. See [Release Readiness](docs/RELEASE_READINESS.md) for signing, privacy, licensing and content-rights requirements. A [Privacy Policy draft](PRIVACY_POLICY.md) has been prepared, but it still contains contact/identity placeholders and must be reviewed and published before release.
 
 ## Requirements for local build
 
