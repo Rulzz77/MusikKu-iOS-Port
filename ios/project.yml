@@ -19,6 +19,8 @@ targets:
     sources:
       - path: Sources
     resources:
+      - path: Resources/Assets.xcassets
+      - path: Resources/PrivacyInfo.xcprivacy
       - path: Support/LaunchScreen.storyboard
     info:
       path: Support/Info.plist
@@ -31,6 +33,7 @@ targets:
         PRODUCT_NAME: MusikKu
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Support/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         ENABLE_PREVIEWS: YES
   MusikKuTests:

@@ -14,8 +14,7 @@ struct HomeView: View {
     let onSearch: () -> Void
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
+        ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     header
 
@@ -58,18 +57,17 @@ struct HomeView: View {
                 .padding(20)
                 .padding(.bottom, 28)
             }
-            .background(MusikKuStyle.background.ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
-            .task {
-                await loadHomeFeed()
-            }
-            .sheet(item: $selectedHomeBrowseItem) { item in
-                CatalogBrowseDetailSheet(item: item)
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            }
+        .background(MusikKuStyle.background.ignoresSafeArea())
+        .task {
+            await loadHomeFeed()
+        }
+        .sheet(item: $selectedHomeBrowseItem) { item in
+            CatalogBrowseDetailSheet(item: item)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(MusikKuStyle.background.ignoresSafeArea())
     }
 
     private var homeFeedContent: some View {

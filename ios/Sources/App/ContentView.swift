@@ -9,21 +9,26 @@ struct ContentView: View {
     @State private var isShowingSearch = false
 
     var body: some View {
-        Group {
-            switch selectedTab {
-            case .home:
-                HomeView(
-                    onExplore: { selectedTab = .explore },
-                    onSearch: { isShowingSearch = true }
-                )
-            case .explore:
-                ExploreView(onSearch: { isShowingSearch = true })
-            case .library:
-                LibraryView(onSearch: { isShowingSearch = true })
+        ZStack {
+            MusikKuStyle.background
+                .ignoresSafeArea()
+
+            Group {
+                switch selectedTab {
+                case .home:
+                    HomeView(
+                        onExplore: { selectedTab = .explore },
+                        onSearch: { isShowingSearch = true }
+                    )
+                case .explore:
+                    ExploreView(onSearch: { isShowingSearch = true })
+                case .library:
+                    LibraryView(onSearch: { isShowingSearch = true })
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(MusikKuStyle.background.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             FloatingMusicDock(
                 selectedTab: selectedTab,

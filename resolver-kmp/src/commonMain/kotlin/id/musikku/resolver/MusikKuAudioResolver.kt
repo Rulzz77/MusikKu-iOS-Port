@@ -15,6 +15,7 @@ import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -220,7 +221,11 @@ private fun YtConfigParser.withEmbeddedConfigFallback(): YtConfigParser =
         ): com.metrolist.innertubex.extraction.PlayerConfig =
             try {
                 this@withEmbeddedConfigFallback.fetchConfig(videoId, useLoginCookies)
-            } catch (_: IllegalStateException) {
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                // Watch-page requests can fail through timeouts and transport errors too.
+                // Retry the independent embedded-page config without any account cookies.
                 this@withEmbeddedConfigFallback.fetchEmbeddedConfig(
                     videoId = videoId,
                     useLoginCookies = false,
