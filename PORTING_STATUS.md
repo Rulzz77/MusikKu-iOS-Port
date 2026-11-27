@@ -16,11 +16,14 @@ Implemented in the current development branch:
 - Lyrics providers: lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato, and LRCLIB fallback; TTML supports line, word, and syllable timing.
 - Kotlin Multiplatform `resolver-kmp` module pinned to the same InnerTubeX `v0.7.0` dependency used by Android MusikKu.
 - iOS Darwin HTTP transport with audio-only extraction (`HLS` and `SABR` disabled) and AVPlayer handoff of direct HTTPS URL plus request headers.
+- Persistent iOS `NSUserDefaults` cache for InnerTubeX remote player configs, matching the Android player-config source and refresh behavior.
+- Client playback nonce generation for each stream extraction request.
+- Best-effort resolver prewarm at player initialization to load player config and cipher support before the first play tap.
 - UI state for stream-resolution progress and resolver errors.
 - Upstream GPL-3.0 license and third-party notices copied into this derivative repository.
 
 Still not integrated or not fully verified:
-- iOS browser PoToken/player-attestation provider. InnerTubeX currently uses its default unavailable token provider; token-gated responses can fail.
+- iOS browser PoToken/player-attestation provider. InnerTubeX currently uses its default unavailable token provider; token-gated responses can fail. The Android WebView implementation still needs a native WKWebView adaptation and device testing.
 - Authenticated Google/YouTube account sessions, account/channel switching, account likes, and server-synced playlists.
 - Home/search/browse continuation paging, richer catalogue detail parity, and nested browse navigation.
 - Other Android catalogue/add-on sources such as JioSaavn and custom modules.
@@ -32,6 +35,7 @@ Still not integrated or not fully verified:
 The resolver uses InnerTubeX `v0.7.0`, matching Android's pinned dependency. It requests direct audio transport because AVPlayer cannot consume the Android/SABR segmented path directly. The initial iOS resolver does not send Google account cookies or a browser PoToken.
 
 Validation:
-- All previous UI, catalogue, browse, collection, lyric, and TTML word-sync changes passed GitHub Actions iOS Simulator builds.
-- The new KMP framework + AVPlayer resolver integration is pending its first CI build.
-- Physical-iPhone playback, background audio, route, and lock-screen tests remain outstanding.
+- GitHub Actions iOS Simulator build passed at commit `1b4939e` (KMP XCFramework build, XcodeGen project generation, and Xcode simulator build).
+- Persistent player-config caching, playback nonce, and startup prewarm were added after that passing build; their follow-up CI runs are in progress.
+- A successful simulator compile does not verify live YouTube stream extraction or audible playback.
+- Physical-iPhone playback, background audio, audio routing, and lock-screen tests remain outstanding.
