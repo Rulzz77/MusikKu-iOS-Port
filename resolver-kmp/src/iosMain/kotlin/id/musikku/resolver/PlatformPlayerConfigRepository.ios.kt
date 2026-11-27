@@ -50,3 +50,7 @@ internal class PlatformPlayerConfigRepository : PlayerConfigRepository {
         const val KEY_ETAG = "innertubex_player_config_etag"
     }
 }
+
+
+internal actual fun createPlatformPlayerConfigRepository(): PlayerConfigRepository =
+    PlatformPlayerConfigRepository()
