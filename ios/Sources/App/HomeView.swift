@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var isLoadingHome = false
     @State private var homeErrorMessage: String?
     @State private var didLoadHome = false
+    @State private var selectedHomeBrowseItem: CatalogItem?
     let onExplore: () -> Void
 
     var body: some View {
@@ -51,6 +52,11 @@ struct HomeView: View {
             .task {
                 await loadHomeFeed()
             }
+            .sheet(item: $selectedHomeBrowseItem) { item in
+                CatalogBrowseDetailSheet(item: item)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
         }
     }
 
@@ -89,7 +95,10 @@ struct HomeView: View {
                 }
             } else {
                 ForEach(homeShelves) { shelf in
-                    CatalogHomeShelfSection(shelf: shelf)
+                    CatalogHomeShelfSection(shelf: shelf) { item in
+                        guard item.browseID != nil else { return }
+                        selectedHomeBrowseItem = item
+                    }
                 }
 
                 Text("Katalog menampilkan metadata dan sampul. Pemutaran lagu akan aktif setelah resolver audio iOS terhubung.")
@@ -322,6 +331,7 @@ private struct LibrarySummaryCard: View {
 
 private struct CatalogHomeShelfSection: View {
     let shelf: CatalogHomeShelf
+    let onOpen: (CatalogItem) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
@@ -341,7 +351,9 @@ private struct CatalogHomeShelfSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(shelf.items) { item in
-                        CatalogHomeItemCard(item: item)
+                        CatalogHomeItemCard(item: item) {
+                            onOpen(item)
+                        }
                     }
                 }
                 .padding(.vertical, 2)
@@ -352,38 +364,44 @@ private struct CatalogHomeShelfSection: View {
 
 private struct CatalogHomeItemCard: View {
     let item: CatalogItem
+    let onOpen: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            AsyncImage(url: item.artworkURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                case .empty:
-                    placeholder.overlay {
-                        ProgressView().tint(MusikKuStyle.accent)
+        Button(action: onOpen) {
+            VStack(alignment: .leading, spacing: 7) {
+                AsyncImage(url: item.artworkURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    case .empty:
+                        placeholder.overlay {
+                            ProgressView().tint(MusikKuStyle.accent)
+                        }
+                    case .failure:
+                        placeholder
+                    @unknown default:
+                        placeholder
                     }
-                case .failure:
-                    placeholder
-                @unknown default:
-                    placeholder
                 }
+                .frame(width: 142, height: 142)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+
+                Text(item.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .frame(width: 142, alignment: .leading)
+
+                Text(item.artist.isEmpty ? item.subtitle : item.artist)
+                    .font(.caption)
+                    .foregroundStyle(MusikKuStyle.secondary)
+                    .lineLimit(2)
+                    .frame(width: 142, alignment: .leading)
             }
-            .frame(width: 142, height: 142)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-
-            Text(item.title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-                .frame(width: 142, alignment: .leading)
-
-            Text(item.artist.isEmpty ? item.subtitle : item.artist)
-                .font(.caption)
-                .foregroundStyle(MusikKuStyle.secondary)
-                .lineLimit(2)
-                .frame(width: 142, alignment: .leading)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .disabled(item.browseID == nil)
         .accessibilityElement(children: .combine)
     }
 

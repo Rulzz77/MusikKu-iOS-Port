@@ -382,7 +382,7 @@ private struct CatalogResultRow: View {
 }
 
 
-private struct CatalogBrowseDetailSheet: View {
+struct CatalogBrowseDetailSheet: View {
     @EnvironmentObject private var library: MusicLibraryStore
     @Environment(\.dismiss) private var dismiss
     let item: CatalogItem
@@ -390,6 +390,7 @@ private struct CatalogBrowseDetailSheet: View {
     @State private var page: CatalogBrowsePage?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var selectedTrackToAddToPlaylist: MusicTrack?
 
     var body: some View {
         NavigationStack {
@@ -430,6 +431,11 @@ private struct CatalogBrowseDetailSheet: View {
             }
         }
         .task { await loadPage() }
+        .sheet(item: $selectedTrackToAddToPlaylist) { track in
+            CatalogPlaylistPickerSheet(track: track)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private func detailContent(_ page: CatalogBrowsePage) -> some View {
@@ -499,6 +505,16 @@ private struct CatalogBrowseDetailSheet: View {
                                 }
 
                                 Spacer(minLength: 0)
+
+                                Button {
+                                    selectedTrackToAddToPlaylist = track.asMusicTrack()
+                                } label: {
+                                    Image(systemName: "text.badge.plus")
+                                        .foregroundStyle(MusikKuStyle.secondary)
+                                        .frame(width: 34, height: 38)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Tambah lagu ke playlist")
 
                                 Button {
                                     library.toggleFavorite(track.asMusicTrack())
@@ -596,6 +612,70 @@ private struct CatalogDetailShelf: View {
                                 .frame(width: 118, alignment: .leading)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+
+private struct CatalogPlaylistPickerSheet: View {
+    @EnvironmentObject private var library: MusicLibraryStore
+    @Environment(\.dismiss) private var dismiss
+    let track: MusicTrack
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if library.playlists.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "music.note.list")
+                            .font(.system(size: 36))
+                            .foregroundStyle(MusikKuStyle.accent)
+                        Text("Belum ada playlist").font(.headline)
+                        Text("Buat playlist dari tab Koleksi terlebih dahulu.")
+                            .font(.subheadline)
+                            .foregroundStyle(MusikKuStyle.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(24)
+                } else {
+                    List {
+                        ForEach(library.playlists) { playlist in
+                            let alreadyAdded = playlist.tracks.contains { $0.id == track.id }
+                            Button {
+                                library.add(track, to: playlist.id)
+                                dismiss()
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "music.note.list")
+                                        .foregroundStyle(MusikKuStyle.accent)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(playlist.name)
+                                            .foregroundStyle(.primary)
+                                        Text("\(playlist.tracks.count) lagu")
+                                            .font(.caption)
+                                            .foregroundStyle(MusikKuStyle.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: alreadyAdded ? "checkmark.circle.fill" : "plus.circle")
+                                        .foregroundStyle(alreadyAdded ? MusikKuStyle.secondary : MusikKuStyle.accent)
+                                }
+                            }
+                            .disabled(alreadyAdded)
+                            .listRowBackground(MusikKuStyle.surface)
+                        }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                }
+            }
+            .background(MusikKuStyle.background.ignoresSafeArea())
+            .navigationTitle("Tambah ke playlist")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Tutup") { dismiss() }
                 }
             }
         }
