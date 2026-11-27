@@ -14,6 +14,7 @@ Implemented in the current development branch:
 - Lock-screen / Control Center play, pause, next, previous, seek, and asynchronously loaded artwork.
 - Audio interruption and headphone-removal pause handling.
 - Read-only YouTube Music search using the Android repository's anonymous WEB_REMIX request pattern, client identity, and filter parameters.
+- Search continuation paging, local recent-search history, and Home-feed continuation paging.
 - Search filters for all, songs, videos, albums, artists, and playlists.
 - First-page Home feed from `FEmusic_home`, plus album/artist/playlist browse details and local collection actions.
 - Lyrics providers: lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato, and LRCLIB fallback; TTML supports line, word, and syllable timing.
@@ -31,7 +32,7 @@ Implemented in the current development branch:
 Still not integrated or not fully verified:
 - WKWebView BotGuard initialization and token-provider code compile successfully in iOS CI. Live challenge execution, PoToken generation, attestation-gated stream extraction, and audible playback still require runtime verification; YouTube can change its challenge protocol.
 - Authenticated Google/YouTube account sessions, account/channel switching, account likes, and server-synced playlists.
-- Home/search/browse continuation paging and deeper nested browse parity.
+- Browse-detail continuation paging and deeper nested browse parity.
 - Other Android catalogue/add-on sources such as JioSaavn and custom modules.
 - Lyrics translation, local TTML import/export, provider settings, and more Android lyric-source parity.
 - Download manager, offline audio, remote recommendations, advanced smart playlists, and cross-device sync. The current Mix is local and ranked by play count.

@@ -28,11 +28,13 @@ final class MusicLibraryStore: ObservableObject {
     @Published private(set) var favorites: [MusicTrack] = []
     @Published private(set) var playlists: [MusicPlaylist] = []
     @Published private(set) var listeningHistory: [MusicListeningEntry] = []
+    @Published private(set) var recentSearches: [String] = []
 
     private let defaults: UserDefaults
     private let favoritesKey = "musikku.library.favorites.v1"
     private let playlistsKey = "musikku.library.playlists.v1"
     private let historyKey = "musikku.library.history.v1"
+    private let searchHistoryKey = "musikku.library.search-history.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -50,6 +52,11 @@ final class MusicLibraryStore: ObservableObject {
         if let data = defaults.data(forKey: historyKey),
            let saved = try? JSONDecoder().decode([MusicListeningEntry].self, from: data) {
             listeningHistory = saved.sorted { $0.lastPlayedAt > $1.lastPlayedAt }
+        }
+
+        if let data = defaults.data(forKey: searchHistoryKey),
+           let saved = try? JSONDecoder().decode([String].self, from: data) {
+            recentSearches = saved
         }
     }
 
@@ -94,6 +101,30 @@ final class MusicLibraryStore: ObservableObject {
     func clearHistory() {
         listeningHistory = []
         persist()
+    }
+
+    func recordSearch(_ rawQuery: String) {
+        let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        recentSearches = Array(
+            ([query] + recentSearches.filter { $0.caseInsensitiveCompare(query) != .orderedSame })
+                .prefix(20)
+        )
+        if let data = try? JSONEncoder().encode(recentSearches) {
+            defaults.set(data, forKey: searchHistoryKey)
+        }
+    }
+
+    func removeSearch(_ query: String) {
+        recentSearches.removeAll { $0 == query }
+        if let data = try? JSONEncoder().encode(recentSearches) {
+            defaults.set(data, forKey: searchHistoryKey)
+        }
+    }
+
+    func clearSearchHistory() {
+        recentSearches = []
+        defaults.removeObject(forKey: searchHistoryKey)
     }
 
     func isFavorite(_ track: MusicTrack) -> Bool {

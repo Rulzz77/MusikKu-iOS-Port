@@ -39,7 +39,7 @@ actor MusicCatalogService {
         self.session = session
     }
 
-    func search(query rawQuery: String, filter: CatalogSearchFilter) async throws -> [CatalogItem] {
+    func searchPage(query rawQuery: String, filter: CatalogSearchFilter) async throws -> CatalogSearchPage {
         let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { throw MusicCatalogError.emptyQuery }
 
@@ -102,8 +102,49 @@ actor MusicCatalogService {
             throw MusicCatalogError.invalidResponse
         }
 
-        let parsed = parseSearch(root)
-        return parsed.filter { item in
+        let items = filteredSearchItems(parseSearch(root), filter: filter)
+        return CatalogSearchPage(items: items, continuation: Self.continuationToken(root))
+    }
+
+
+    func search(query: String, filter: CatalogSearchFilter) async throws -> [CatalogItem] {
+        try await searchPage(query: query, filter: filter).items
+    }
+
+    func searchContinuation(token: String, filter: CatalogSearchFilter) async throws -> CatalogSearchPage {
+        let locale = Locale.current
+        let language = locale.language.languageCode?.identifier ?? "en"
+        let region = locale.region?.identifier ?? "US"
+        let clientVersion = await resolveClientVersion()
+        var client: [String: Any] = [
+            "clientName": "WEB_REMIX",
+            "clientVersion": clientVersion,
+            "hl": language,
+            "gl": region
+        ]
+        client["utcOffsetMinutes"] = TimeZone.current.secondsFromGMT() / 60
+        let body: [String: Any] = [
+            "context": [
+                "client": client,
+                "user": ["lockedSafetyMode": false],
+                "request": ["useSsl": true]
+            ],
+            "continuation": token
+        ]
+        let request = try continuationRequest(
+            endpoint: "search",
+            token: token,
+            language: language,
+            clientVersion: clientVersion,
+            body: body
+        )
+        let root = try await sendJSON(request)
+        let items = filteredSearchItems(parseSearch(root), filter: filter)
+        return CatalogSearchPage(items: items, continuation: Self.continuationToken(root))
+    }
+
+    private func filteredSearchItems(_ items: [CatalogItem], filter: CatalogSearchFilter) -> [CatalogItem] {
+        items.filter { item in
             switch filter {
             case .all: return true
             case .songs: return item.kind == .song
@@ -296,7 +337,7 @@ actor MusicCatalogService {
         return CatalogHomeShelf(title: title, subtitle: subtitle, items: items)
     }
 
-    func homeFeed() async throws -> [CatalogHomeShelf] {
+    func homeFeedPage() async throws -> CatalogHomeFeedPage {
         let locale = Locale.current
         let language = locale.language.languageCode?.identifier ?? "en"
         let region = locale.region?.identifier ?? "US"
@@ -349,7 +390,154 @@ actor MusicCatalogService {
         guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw MusicCatalogError.invalidResponse
         }
-        return parseHome(root)
+        return CatalogHomeFeedPage(shelves: parseHome(root), continuation: Self.continuationToken(root))
+    }
+
+
+    func homeFeed() async throws -> [CatalogHomeShelf] {
+        try await homeFeedPage().shelves
+    }
+
+    func homeContinuation(token: String) async throws -> CatalogHomeFeedPage {
+        let locale = Locale.current
+        let language = locale.language.languageCode?.identifier ?? "en"
+        let region = locale.region?.identifier ?? "US"
+        let clientVersion = await resolveClientVersion()
+        let client: [String: Any] = [
+            "clientName": "WEB_REMIX",
+            "clientVersion": clientVersion,
+            "hl": language,
+            "gl": region,
+            "utcOffsetMinutes": TimeZone.current.secondsFromGMT() / 60
+        ]
+        let body: [String: Any] = [
+            "context": [
+                "client": client,
+                "user": ["lockedSafetyMode": false],
+                "request": ["useSsl": true]
+            ],
+            "continuation": token
+        ]
+        let request = try continuationRequest(
+            endpoint: "browse",
+            token: token,
+            language: language,
+            clientVersion: clientVersion,
+            body: body
+        )
+        let root = try await sendJSON(request)
+        return CatalogHomeFeedPage(
+            shelves: parseHomeContinuation(root),
+            continuation: Self.continuationToken(root)
+        )
+    }
+
+    private func continuationRequest(
+        endpoint: String,
+        token: String,
+        language: String,
+        clientVersion: String,
+        body: [String: Any]
+    ) throws -> URLRequest {
+        guard var components = URLComponents(string: "\(musicOrigin)/youtubei/v1/\(endpoint)") else {
+            throw MusicCatalogError.invalidURL
+        }
+        components.queryItems = [
+            URLQueryItem(name: "prettyPrint", value: "false"),
+            URLQueryItem(name: "hl", value: language),
+            URLQueryItem(name: "ctoken", value: token),
+            URLQueryItem(name: "continuation", value: token),
+            URLQueryItem(name: "type", value: "next")
+        ]
+        guard let url = components.url else { throw MusicCatalogError.invalidURL }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 25
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(language, forHTTPHeaderField: "Accept-Language")
+        request.setValue(musicOrigin, forHTTPHeaderField: "Origin")
+        request.setValue(musicOrigin, forHTTPHeaderField: "X-Origin")
+        request.setValue("\(musicOrigin)/", forHTTPHeaderField: "Referer")
+        request.setValue("67", forHTTPHeaderField: "X-YouTube-Client-Name")
+        request.setValue(clientVersion, forHTTPHeaderField: "X-YouTube-Client-Version")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        return request
+    }
+
+    private func sendJSON(_ request: URLRequest) async throws -> [String: Any] {
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw MusicCatalogError.invalidResponse
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw MusicCatalogError.httpStatus(http.statusCode)
+        }
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw MusicCatalogError.invalidResponse
+        }
+        return root
+    }
+
+    private static func continuationToken(_ root: Any) -> String? {
+        let renderer = collectRenderers(root, named: "continuationItemRenderer").first
+        let endpoint = nested(renderer, "continuationEndpoint")
+        if let token = nested(endpoint, "continuationCommand", "token") as? String {
+            return token
+        }
+        if let commands = nested(endpoint, "commandExecutorCommand", "commands") as? [Any] {
+            for command in commands {
+                if let token = nested(command, "continuationCommand", "token") as? String {
+                    return token
+                }
+            }
+        }
+        if let token = collectRenderers(root, named: "nextContinuationData").first?["continuation"] as? String {
+            return token
+        }
+        return nil
+    }
+
+    private func parseHomeContinuation(_ root: Any) -> [CatalogHomeShelf] {
+        var shelves: [CatalogHomeShelf] = []
+
+        func parsePlainShelf(_ shelf: [String: Any]) -> CatalogHomeShelf? {
+            let title = Self.runsText(shelf["title"])
+            let contents = shelf["contents"] as? [Any] ?? []
+            let items = contents.compactMap { entry -> CatalogItem? in
+                guard let row = Self.nested(entry, "musicResponsiveListItemRenderer") as? [String: Any] else {
+                    return nil
+                }
+                return parseTrack(row)
+            }
+            guard !items.isEmpty else { return nil }
+            return CatalogHomeShelf(
+                title: title.isEmpty ? "Musik untuk kamu" : title,
+                subtitle: "",
+                items: items
+            )
+        }
+
+        func walk(_ value: Any) {
+            if let dictionary = value as? [String: Any] {
+                if let carousel = dictionary["musicCarouselShelfRenderer"] as? [String: Any],
+                   let parsed = parseCarouselShelf(carousel) {
+                    shelves.append(parsed)
+                }
+                if let shelf = dictionary["musicShelfRenderer"] as? [String: Any],
+                   let parsed = parsePlainShelf(shelf) {
+                    shelves.append(parsed)
+                }
+                dictionary.values.forEach(walk)
+            } else if let array = value as? [Any] {
+                array.forEach(walk)
+            }
+        }
+
+        walk(root)
+        return shelves
     }
 
     private func parseHome(_ root: [String: Any]) -> [CatalogHomeShelf] {

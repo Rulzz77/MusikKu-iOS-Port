@@ -104,6 +104,16 @@ struct CatalogMoodGenre: Identifiable, Hashable {
     var id: String { "\(browseID)|\(params ?? "")" }
 }
 
+struct CatalogSearchPage: Hashable {
+    let items: [CatalogItem]
+    let continuation: String?
+}
+
+struct CatalogHomeFeedPage: Hashable {
+    let shelves: [CatalogHomeShelf]
+    let continuation: String?
+}
+
 struct CatalogBrowsePage: Identifiable, Hashable {
     let id: String
     let title: String

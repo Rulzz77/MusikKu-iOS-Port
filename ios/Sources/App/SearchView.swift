@@ -9,6 +9,9 @@ struct SearchView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var hasSearched = false
+    @State private var continuationToken: String?
+    @State private var isLoadingMore = false
+    @State private var paginationError: String?
     @State private var selectedBrowseItem: CatalogItem?
     @FocusState private var searchFieldFocused: Bool
 
@@ -51,7 +54,9 @@ struct SearchView: View {
                         Button("Hapus") {
                             query = ""
                             results = []
+                            continuationToken = nil
                             errorMessage = nil
+                            paginationError = nil
                             hasSearched = false
                         }
                         .font(.subheadline)
@@ -88,6 +93,7 @@ struct SearchView: View {
                 Button {
                     query = ""
                     results = []
+                    continuationToken = nil
                     hasSearched = false
                 } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -158,7 +164,7 @@ struct SearchView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 9)
 
-                ForEach(results) { item in
+                ForEach(Array(results.enumerated()), id: \.offset) { index, item in
                     CatalogResultRow(
                         item: item,
                         isSaved: item.canSaveAsTrack && library.isFavorite(item.asMusicTrack()),
@@ -177,6 +183,26 @@ struct SearchView: View {
                     )
                     .padding(.horizontal, 18)
                     .padding(.vertical, 7)
+                    .onAppear {
+                        if index >= results.count - 5 {
+                            Task { await loadMoreResults() }
+                        }
+                    }
+                }
+
+                if isLoadingMore {
+                    ProgressView("Memuat hasil berikutnya…")
+                        .tint(MusikKuStyle.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                } else if let paginationError {
+                    Button(paginationError) {
+                        Task { await loadMoreResults() }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(MusikKuStyle.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
                 }
 
                 Text("Tekan tombol putar pada lagu untuk mencoba streaming melalui pemutar MusikKu. Beberapa lagu mungkin tidak tersedia dari penyedia.")
@@ -198,13 +224,45 @@ struct SearchView: View {
                 message: "Coba kata kunci atau kategori pencarian yang berbeda.",
                 action: nil
             )
-        } else {
+        } else if library.recentSearches.isEmpty {
             statusView(
                 symbol: "sparkle.magnifyingglass",
                 title: "Temukan musik",
                 message: "Cari lagu, artis, album, atau playlist dari katalog yang digunakan MusikKu Android.",
                 action: nil
             )
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Pencarian terbaru")
+                        .font(.headline)
+                    Spacer()
+                    Button("Hapus") { library.clearSearchHistory() }
+                        .font(.caption)
+                        .foregroundStyle(MusikKuStyle.secondary)
+                }
+                ForEach(library.recentSearches, id: \.self) { recent in
+                    Button {
+                        query = recent
+                        Task { await performSearch() }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundStyle(MusikKuStyle.secondary)
+                            Text(recent)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: "arrow.up.left")
+                                .foregroundStyle(MusikKuStyle.secondary)
+                        }
+                        .padding(.vertical, 7)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 
@@ -246,17 +304,48 @@ struct SearchView: View {
 
         isLoading = true
         errorMessage = nil
+        paginationError = nil
+        continuationToken = nil
+        results = []
         hasSearched = true
         defer { isLoading = false }
 
         do {
-            results = try await MusicCatalogService.shared.search(
+            let page = try await MusicCatalogService.shared.searchPage(
                 query: trimmed,
                 filter: selectedFilter
             )
+            results = page.items
+            continuationToken = page.continuation
+            library.recordSearch(trimmed)
         } catch {
             results = []
             errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func loadMoreResults() async {
+        guard !isLoading, !isLoadingMore,
+              let token = continuationToken,
+              !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        isLoadingMore = true
+        paginationError = nil
+        defer { isLoadingMore = false }
+
+        do {
+            let page = try await MusicCatalogService.shared.searchContinuation(
+                token: token,
+                filter: selectedFilter
+            )
+            var known = Set(results.map { "\($0.kind.rawValue):\($0.id)" })
+            results.append(contentsOf: page.items.filter {
+                known.insert("\($0.kind.rawValue):\($0.id)").inserted
+            })
+            continuationToken = page.continuation
+        } catch {
+            paginationError = "Gagal memuat lagi. Ketuk untuk mencoba ulang."
         }
     }
 }

@@ -7,6 +7,8 @@ struct HomeView: View {
     @State private var isLoadingHome = false
     @State private var homeErrorMessage: String?
     @State private var didLoadHome = false
+    @State private var homeContinuation: String?
+    @State private var isLoadingMoreHome = false
     @State private var selectedHomeBrowseItem: CatalogItem?
     let onExplore: () -> Void
     let onSearch: () -> Void
@@ -102,7 +104,7 @@ struct HomeView: View {
                     }
                 }
             } else {
-                ForEach(homeShelves) { shelf in
+                ForEach(Array(homeShelves.enumerated()), id: \.element.id) { index, shelf in
                     CatalogHomeShelfSection(shelf: shelf) { item in
                         if item.canSaveAsTrack {
                             playback.play(item.asMusicTrack())
@@ -110,6 +112,18 @@ struct HomeView: View {
                             selectedHomeBrowseItem = item
                         }
                     }
+                    .onAppear {
+                        if index >= homeShelves.count - 2 {
+                            Task { await loadMoreHomeFeed() }
+                        }
+                    }
+                }
+
+                if isLoadingMoreHome {
+                    ProgressView("Memuat rekomendasi berikutnya…")
+                        .tint(MusikKuStyle.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
                 }
 
                 Text("Ketuk lagu untuk mencoba memutarnya melalui pemutar MusikKu. Ketersediaan audio bergantung pada penyedia musik.")
@@ -217,12 +231,30 @@ struct HomeView: View {
         defer { isLoadingHome = false }
 
         do {
-            homeShelves = try await MusicCatalogService.shared.homeFeed()
+            let page = try await MusicCatalogService.shared.homeFeedPage()
+            homeShelves = page.shelves
+            homeContinuation = page.continuation
             if homeShelves.isEmpty {
                 homeErrorMessage = "Belum ada rekomendasi yang dikirim katalog untuk sesi ini."
             }
         } catch {
             homeErrorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func loadMoreHomeFeed() async {
+        guard !isLoadingMoreHome, let token = homeContinuation else { return }
+        isLoadingMoreHome = true
+        defer { isLoadingMoreHome = false }
+
+        do {
+            let page = try await MusicCatalogService.shared.homeContinuation(token: token)
+            var known = Set(homeShelves.map(\.id))
+            homeShelves.append(contentsOf: page.shelves.filter { known.insert($0.id).inserted })
+            homeContinuation = page.continuation
+        } catch {
+            homeErrorMessage = "Rekomendasi berikutnya gagal dimuat."
         }
     }
 
