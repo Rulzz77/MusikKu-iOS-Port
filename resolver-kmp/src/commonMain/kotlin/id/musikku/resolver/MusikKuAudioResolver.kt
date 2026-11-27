@@ -7,7 +7,6 @@ import com.metrolist.innertubex.cipher.YouTubeCipherService
 import com.metrolist.innertubex.extraction.AudioQuality
 import com.metrolist.innertubex.extraction.ContentHints
 import com.metrolist.innertubex.extraction.InnerTubeExtractor
-import com.metrolist.innertubex.extraction.YtConfigParser
 import com.metrolist.innertubex.extraction.YtConfigParserImpl
 import com.metrolist.innertubex.extraction.generateClientPlaybackNonce
 import com.metrolist.innertubex.models.YouTubeLocale
@@ -37,7 +36,6 @@ class MusikKuAudioResolver {
     )
     private val cipherService = YouTubeCipherService(httpClient, configStore)
     private val configParser = YtConfigParserImpl(httpClient, innerTube, configStore)
-        .withEmbeddedConfigFallback()
     private val failedClientMutex = Mutex()
     private val failedStreamClients = mutableMapOf<String, FailedStreamClients>()
     private val tokenProvider = createPlatformTokenProvider()
@@ -188,20 +186,7 @@ private data class FailedStreamClients(
 private const val STREAM_CLIENT_FAILURE_TTL_MS = 10 * 60 * 1000L
 private const val MAX_FAILED_STREAM_ENTRIES = 256
 
-/** Mirrors the Android resolver: use embedded player config if the remote config fetch fails. */
-private fun YtConfigParser.withEmbeddedConfigFallback(): YtConfigParser =
-    object : YtConfigParser by this {
-        override suspend fun fetchConfig(videoId: String, useLoginCookies: Boolean) = try {
-            this@withEmbeddedConfigFallback.fetchConfig(videoId, useLoginCookies)
-        } catch (_: IllegalStateException) {
-            this@withEmbeddedConfigFallback.fetchEmbeddedConfig(videoId, useLoginCookies = false)
-        }
-    }
-
-data class ResolvedAudioStream(
-    val url: String,
-    val mimeType: String?,
-    val codecs: String?,
+/** Mirrors the Android resolver: use embedded player config if the remote config fetch fails. *String?,
     val bitrate: Int?,
     val headersJson: String,
     val clientName: String,
