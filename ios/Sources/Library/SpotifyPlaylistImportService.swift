@@ -243,8 +243,7 @@ actor SpotifyPlaylistImportService {
             ?? Self.integer(stateData["trackCount"])
             ?? Self.integer(Self.nested(stateData, ["tracks", "totalCount"]))
 
-        if rawTracks.count >= embedTrackLimit,
-           reportedTotal == nil || (reportedTotal ?? 0) > rawTracks.count {
+        if reportedTotal.map({ $0 > rawTracks.count }) ?? (rawTracks.count >= embedTrackLimit) {
             throw SpotifyPlaylistImportError.incompletePlaylist
         }
 

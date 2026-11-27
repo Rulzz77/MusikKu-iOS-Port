@@ -59,6 +59,12 @@ struct ContentView: View {
             guard let track = playback.currentTrack else { return }
             library.recordListenProgress(track, seconds: 0.5)
         }
+        .onChange(of: playback.isPlaying) { isPlaying in
+            // Persist sub-10-second progress immediately when playback pauses or is interrupted.
+            if !isPlaying {
+                library.flushListeningStats()
+            }
+        }
         .preferredColorScheme(.dark)
     }
 }

@@ -307,6 +307,13 @@ final class PlaybackManager: ObservableObject {
     }
 
     func resume() {
+        // AVPlayer keeps a failed item attached; calling play() again cannot recover it.
+        // Recreate the item and resolve a fresh stream when the user taps Play after an error.
+        if player?.currentItem?.status == .failed, let track = currentTrack {
+            startTrack(track)
+            return
+        }
+
         guard let player else {
             // Re-resolve the current track when playback was paused before AVPlayer existed.
             if let track = currentTrack, !isResolving {

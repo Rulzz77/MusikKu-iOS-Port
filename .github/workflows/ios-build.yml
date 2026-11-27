@@ -24,7 +24,8 @@ on:
 
 # Keep only the newest validation for a pull request/branch.
 concurrency:
-  group: ios-simulator-${{ github.event.pull_request.number || github.ref }}
+  # A push and pull_request synchronize event for the same branch share one slot.
+  group: ios-simulator-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
