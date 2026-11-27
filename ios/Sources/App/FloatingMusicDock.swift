@@ -123,14 +123,14 @@ struct FloatingMusicDock: View {
             Button {
                 playback.togglePlayback()
             } label: {
-                Image(systemName: playback.isResolving ? "xmark" : (playback.isPlaying ? "pause.fill" : "play.fill"))
+                Image(systemName: playback.isResolving ? "xmark" : ((playback.isPlaying || playback.isBuffering) ? "pause.fill" : "play.fill"))
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.primary)
                     .frame(width: 38, height: 38)
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan" : (playback.isPlaying ? "Jeda" : "Putar"))
+            .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan" : ((playback.isPlaying || playback.isBuffering) ? "Jeda" : "Putar"))
 
             Button {
                 playback.playNext()

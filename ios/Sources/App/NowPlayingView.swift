@@ -35,7 +35,7 @@ struct MiniPlayerBar: View {
                     Image(
                         systemName: playback.isResolving
                             ? "xmark"
-                            : (playback.isPlaying ? "pause.fill" : "play.fill")
+                            : ((playback.isPlaying || playback.isBuffering) ? "pause.fill" : "play.fill")
                     )
                         .font(.title3.bold())
                 }
@@ -43,7 +43,7 @@ struct MiniPlayerBar: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan audio" : (playback.isPlaying ? "Jeda" : "Putar"))
+            .accessibilityLabel(playback.isResolving ? "Batalkan pemuatan audio" : ((playback.isPlaying || playback.isBuffering) ? "Jeda" : "Putar"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

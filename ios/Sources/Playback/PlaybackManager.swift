@@ -286,7 +286,7 @@ final class PlaybackManager: ObservableObject {
     }
 
     func togglePlayback() {
-        if isResolving || isPlaying {
+        if isResolving || isPlaying || isBuffering {
             pause()
         } else {
             resume()
