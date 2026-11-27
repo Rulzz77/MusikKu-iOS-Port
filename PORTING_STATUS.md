@@ -6,8 +6,8 @@ Implemented in the current development branch:
 - SwiftUI app with Android-aligned Beranda, Explore, and Koleksi tabs; catalogue search is opened globally from the main screens.
 - Combined floating material dock with mini-player transport controls and main-tab navigation.
 - Android-aligned dark palette and mood/genre Explore grid sourced from `FEmusic_moods_and_genres`.
-- Local listening history with play counts and a Mix queue ranked by frequently played tracks.
-- Saved local Smart Playlist rules with dynamic results based on minimum play count, optional artist filter, and most-played/recently-played ordering.
+- Local listening history with play counts and elapsed listening time, plus a Mix queue ranked by frequently played tracks.
+- Saved local Smart Playlist rules with minimum play count, optional artist filter, track-duration bounds, last-played window, ALL/ANY matching and most-played/recently-played/most-listened ordering.
 - Persistent local playlists and favorites using versioned UserDefaults JSON keys.
 - Playlist detail can queue tracks and remove items when a track has a resolved stream.
 - AVPlayer queue foundation: play a queue, enqueue, remove a queue item, next, previous, shuffle, repeat-one, and automatic advance.
@@ -37,7 +37,7 @@ Still not integrated or not fully verified:
 - Deeper nested browse parity, continuation for shelves inside complex artist pages, and continuation edge-case compatibility still need live-response testing.
 - Other Android catalogue/add-on sources such as JioSaavn and custom modules.
 - Local TTML import/export, provider settings and the remaining Android lyric-source parity. On-demand lyric translation to Indonesian, English, Malay, Japanese, Korean, Chinese, Spanish, French and German is now implemented with line timing preserved.
-- Download manager, offline audio, remote recommendations, full Android Smart Playlist rule parity (genre/year/duration/time-window/ALL-ANY filters), and cross-device sync. Smart Mix on iOS currently supports minimum plays, an optional artist filter, and sorting.
+- Download manager, offline audio, remote recommendations, remaining Smart Playlist metadata filters (genre and release-year are not yet available in the iOS track catalogue), and cross-device sync.
 - Native DSP, equalizer, crossfade, advanced codecs, USB audio, and specialized device-routing parity.
 - TestFlight or App Store release signing.
 

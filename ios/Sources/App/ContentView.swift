@@ -43,6 +43,11 @@ struct ContentView: View {
             guard let track = playback.currentTrack else { return }
             library.recordPlay(track)
         }
+
+        .onChange(of: playback.playbackHeartbeatID) { _ in
+            guard let track = playback.currentTrack else { return }
+            library.recordListenProgress(track, seconds: 0.5)
+        }
         .preferredColorScheme(.dark)
     }
 }

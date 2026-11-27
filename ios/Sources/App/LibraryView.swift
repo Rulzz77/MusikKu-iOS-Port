@@ -76,12 +76,16 @@ struct LibraryView: View {
                 Text("Playlist disimpan secara lokal di perangkat ini.")
             }
             .sheet(isPresented: $showingCreateSmartPlaylist) {
-                SmartPlaylistEditorSheet { name, artist, minimumPlays, sort in
+                SmartPlaylistEditorSheet { name, artist, minimumPlays, sort, minimumDuration, maximumDuration, recentDays, matchMode in
                     _ = library.createSmartPlaylist(
                         name: name,
                         artistContains: artist,
                         minimumPlays: minimumPlays,
-                        sort: sort
+                        sort: sort,
+                        minimumDurationMinutes: minimumDuration,
+                        maximumDurationMinutes: maximumDuration,
+                        lastPlayedWithinDays: recentDays,
+                        matchMode: matchMode
                     )
                 }
                 .presentationDetents([.medium, .large])
@@ -280,7 +284,15 @@ struct LibraryView: View {
 
     private func smartPlaylistDescription(_ rule: MusicSmartPlaylistRule, trackCount: Int) -> String {
         let artistText = rule.artistContains.isEmpty ? "Semua artis" : "Artis: \(rule.artistContains)"
-        return "\(trackCount) lagu • \(artistText) • Minimal \(rule.minimumPlays)× • \(rule.sort.title)"
+        var details = ["\(trackCount) lagu", artistText, "Minimal \(rule.minimumPlays)×"]
+        if let minimum = rule.minimumDurationMinutes { details.append("≥ \(minimum) menit") }
+        if let maximum = rule.maximumDurationMinutes { details.append("≤ \(maximum) menit") }
+        if let days = rule.lastPlayedWithinDays { details.append("Diputar ≤ \(days) hari") }
+        if rule.minimumDurationMinutes != nil || rule.maximumDurationMinutes != nil || rule.lastPlayedWithinDays != nil {
+            details.append((rule.matchMode ?? .all).title)
+        }
+        details.append(rule.sort.title)
+        return details.joined(separator: " • ")
     }
 
     private func emptyState(
@@ -332,9 +344,13 @@ private struct SmartPlaylistEditorSheet: View {
     @State private var name = ""
     @State private var artist = ""
     @State private var minimumPlays = 2
+    @State private var minimumDurationMinutes = 0
+    @State private var maximumDurationMinutes = 0
+    @State private var lastPlayedWithinDays = 0
+    @State private var matchMode: MusicSmartPlaylistMatchMode = .all
     @State private var sort: MusicSmartPlaylistSort = .mostPlayed
 
-    let onSave: (String, String, Int, MusicSmartPlaylistSort) -> Void
+    let onSave: (String, String, Int, MusicSmartPlaylistSort, Int?, Int?, Int?, MusicSmartPlaylistMatchMode) -> Void
 
     var body: some View {
         NavigationStack {
@@ -347,7 +363,7 @@ private struct SmartPlaylistEditorSheet: View {
                 Section("Aturan") {
                     TextField("Filter artis (opsional)", text: $artist)
                         .textInputAutocapitalization(.words)
-                    Stepper("Minimal diputar: \(minimumPlays)×", value: $minimumPlays, in: 1...50)
+                    Stepper("Minimal diputar: \(minimumPlays)×", value: $minimumPlays, in: 1...100)
                     Picker("Urutan", selection: $sort) {
                         ForEach(MusicSmartPlaylistSort.allCases) { option in
                             Text(option.title).tag(option)
@@ -355,8 +371,31 @@ private struct SmartPlaylistEditorSheet: View {
                     }
                 }
 
+                Section("Filter tambahan") {
+                    Stepper(
+                        "Durasi minimum: \(minimumDurationMinutes == 0 ? "Bebas" : "\(minimumDurationMinutes) menit")",
+                        value: $minimumDurationMinutes,
+                        in: 0...240
+                    )
+                    Stepper(
+                        "Durasi maksimum: \(maximumDurationMinutes == 0 ? "Bebas" : "\(maximumDurationMinutes) menit")",
+                        value: $maximumDurationMinutes,
+                        in: 0...240
+                    )
+                    Stepper(
+                        "Terakhir diputar: \(lastPlayedWithinDays == 0 ? "Kapan saja" : "\(lastPlayedWithinDays) hari")",
+                        value: $lastPlayedWithinDays,
+                        in: 0...3650
+                    )
+                    Picker("Gabungkan filter", selection: $matchMode) {
+                        ForEach(MusicSmartPlaylistMatchMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                }
+
                 Section {
-                    Text("Hasil Mix akan berubah otomatis mengikuti riwayat pemutaran lokal di perangkat ini.")
+                    Text("Mix dihitung dari lagu yang pernah diputar di perangkat ini. Durasi menggunakan metadata katalog; waktu dengar dihitung dari sesi AVPlayer.")
                         .font(.footnote)
                         .foregroundStyle(MusikKuStyle.secondary)
                 }
@@ -371,10 +410,22 @@ private struct SmartPlaylistEditorSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Simpan") {
-                        onSave(name, artist, minimumPlays, sort)
+                        onSave(
+                            name,
+                            artist,
+                            minimumPlays,
+                            sort,
+                            minimumDurationMinutes > 0 ? minimumDurationMinutes : nil,
+                            maximumDurationMinutes > 0 ? maximumDurationMinutes : nil,
+                            lastPlayedWithinDays > 0 ? lastPlayedWithinDays : nil,
+                            matchMode
+                        )
                         dismiss()
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(
+                        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        (minimumDurationMinutes > 0 && maximumDurationMinutes > 0 && minimumDurationMinutes > maximumDurationMinutes)
+                    )
                 }
             }
         }

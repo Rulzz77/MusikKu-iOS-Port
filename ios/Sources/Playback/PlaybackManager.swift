@@ -24,6 +24,7 @@ enum PlaybackRepeatMode: String, CaseIterable, Identifiable, Hashable {
 final class PlaybackManager: ObservableObject {
     @Published private(set) var currentTrack: MusicTrack?
     @Published private(set) var playbackStartID = UUID()
+    @Published private(set) var playbackHeartbeatID = UUID()
     @Published private(set) var isPlaying = false
     @Published private(set) var position: Double = 0
     @Published private(set) var duration: Double = 0
@@ -479,6 +480,9 @@ final class PlaybackManager: ObservableObject {
                 if let item = newPlayer.currentItem {
                     let total = item.duration.seconds
                     self.duration = total.isFinite ? max(0, total) : 0
+                }
+                if newPlayer.timeControlStatus == .playing {
+                    self.playbackHeartbeatID = UUID()
                 }
                 self.updateNowPlaying()
             }

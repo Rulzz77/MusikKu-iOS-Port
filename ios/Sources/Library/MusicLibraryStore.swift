@@ -19,14 +19,16 @@ struct MusicListeningEntry: Identifiable, Codable, Hashable {
     let track: MusicTrack
     var playCount: Int
     var lastPlayedAt: Date
+    var listenedSeconds: Double? = nil
 
     var id: String { track.id }
 }
 
 
-enum MusicSmartPlaylistSort: String, Codable, CaseIterable, Identifiable {
+enum MusicSmartPlaylistSort: String, Codable, CaseIterable, Identifiable, Hashable {
     case mostPlayed
     case recentlyPlayed
+    case mostListened
 
     var id: String { rawValue }
 
@@ -34,6 +36,21 @@ enum MusicSmartPlaylistSort: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .mostPlayed: return "Paling sering diputar"
         case .recentlyPlayed: return "Terbaru diputar"
+        case .mostListened: return "Waktu dengar terbanyak"
+        }
+    }
+}
+
+enum MusicSmartPlaylistMatchMode: String, Codable, CaseIterable, Identifiable, Hashable {
+    case all
+    case any
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: return "Semua filter (ALL)"
+        case .any: return "Salah satu filter (ANY)"
         }
     }
 }
@@ -44,19 +61,31 @@ struct MusicSmartPlaylistRule: Identifiable, Codable, Hashable {
     var artistContains: String
     var minimumPlays: Int
     var sort: MusicSmartPlaylistSort
+    var minimumDurationMinutes: Int? = nil
+    var maximumDurationMinutes: Int? = nil
+    var lastPlayedWithinDays: Int? = nil
+    var matchMode: MusicSmartPlaylistMatchMode? = nil
 
     init(
         id: UUID = UUID(),
         name: String,
         artistContains: String = "",
         minimumPlays: Int = 1,
-        sort: MusicSmartPlaylistSort = .mostPlayed
+        sort: MusicSmartPlaylistSort = .mostPlayed,
+        minimumDurationMinutes: Int? = nil,
+        maximumDurationMinutes: Int? = nil,
+        lastPlayedWithinDays: Int? = nil,
+        matchMode: MusicSmartPlaylistMatchMode? = nil
     ) {
         self.id = id
         self.name = name
         self.artistContains = artistContains
         self.minimumPlays = minimumPlays
         self.sort = sort
+        self.minimumDurationMinutes = minimumDurationMinutes
+        self.maximumDurationMinutes = maximumDurationMinutes
+        self.lastPlayedWithinDays = lastPlayedWithinDays
+        self.matchMode = matchMode
     }
 }
 
@@ -126,7 +155,8 @@ final class MusicLibraryStore: ObservableObject {
             entry = MusicListeningEntry(
                 track: track,
                 playCount: entry.playCount + 1,
-                lastPlayedAt: Date()
+                lastPlayedAt: Date(),
+                listenedSeconds: entry.listenedSeconds
             )
             listeningHistory.insert(entry, at: 0)
         } else {
@@ -147,27 +177,77 @@ final class MusicLibraryStore: ObservableObject {
         persist()
     }
 
-    /// Builds a smart playlist dynamically from the local listening statistics.
+    /// Adds real elapsed listening time reported by the active AVPlayer session.
+    /// The UI sends half-second heartbeats; disk writes are throttled to 10-second boundaries.
+    func recordListenProgress(_ track: MusicTrack, seconds: Double = 0.5) {
+        guard seconds.isFinite, seconds > 0, seconds <= 1.5,
+              let index = listeningHistory.firstIndex(where: { $0.track.id == track.id }) else { return }
+
+        var entry = listeningHistory[index]
+        let previous = entry.listenedSeconds ?? 0
+        let updated = previous + seconds
+        entry.listenedSeconds = updated
+        listeningHistory[index] = entry
+
+        if Int(updated / 10) > Int(previous / 10) {
+            persist()
+        }
+    }
+
+    /// Builds a smart playlist dynamically from local listening statistics and track metadata.
     func tracks(for rule: MusicSmartPlaylistRule) -> [MusicTrack] {
         let artistQuery = rule.artistContains.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cutoffDate = rule.lastPlayedWithinDays.map {
+            Date().addingTimeInterval(-Double($0) * 86_400)
+        }
+
+        var optionalFilters: [(MusicListeningEntry) -> Bool] = []
+        if !artistQuery.isEmpty {
+            optionalFilters.append { $0.track.artist.localizedCaseInsensitiveContains(artistQuery) }
+        }
+        if let minimum = rule.minimumDurationMinutes {
+            optionalFilters.append {
+                guard let seconds = $0.track.durationSeconds else { return false }
+                return seconds >= minimum * 60
+            }
+        }
+        if let maximum = rule.maximumDurationMinutes {
+            optionalFilters.append {
+                guard let seconds = $0.track.durationSeconds else { return false }
+                return seconds <= maximum * 60
+            }
+        }
+        if let cutoffDate {
+            optionalFilters.append { $0.lastPlayedAt >= cutoffDate }
+        }
+
         let matching = listeningHistory.filter { entry in
-            entry.playCount >= rule.minimumPlays &&
-            (artistQuery.isEmpty || entry.track.artist.localizedCaseInsensitiveContains(artistQuery))
+            guard entry.playCount >= rule.minimumPlays else { return false }
+            guard !optionalFilters.isEmpty else { return true }
+            switch rule.matchMode ?? .all {
+            case .all: return optionalFilters.allSatisfy { $0(entry) }
+            case .any: return optionalFilters.contains { $0(entry) }
+            }
         }
 
         let sorted: [MusicListeningEntry]
         switch rule.sort {
         case .mostPlayed:
             sorted = matching.sorted {
-                if $0.playCount == $1.playCount {
-                    return $0.lastPlayedAt > $1.lastPlayedAt
-                }
+                if $0.playCount == $1.playCount { return $0.lastPlayedAt > $1.lastPlayedAt }
                 return $0.playCount > $1.playCount
             }
         case .recentlyPlayed:
             sorted = matching.sorted { $0.lastPlayedAt > $1.lastPlayedAt }
+        case .mostListened:
+            sorted = matching.sorted {
+                let first = $0.listenedSeconds ?? 0
+                let second = $1.listenedSeconds ?? 0
+                if first == second { return $0.playCount > $1.playCount }
+                return first > second
+            }
         }
-        return sorted.map(\.track)
+        return sorted.prefix(100).map(\.track)
     }
 
     @discardableResult
@@ -175,13 +255,21 @@ final class MusicLibraryStore: ObservableObject {
         name rawName: String,
         artistContains rawArtist: String,
         minimumPlays: Int,
-        sort: MusicSmartPlaylistSort
+        sort: MusicSmartPlaylistSort,
+        minimumDurationMinutes: Int? = nil,
+        maximumDurationMinutes: Int? = nil,
+        lastPlayedWithinDays: Int? = nil,
+        matchMode: MusicSmartPlaylistMatchMode = .all
     ) -> Bool {
         let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
         let artist = rawArtist.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name.count <= 40,
               artist.count <= 80,
-              minimumPlays >= 1, minimumPlays <= 50,
+              minimumPlays >= 1, minimumPlays <= 100,
+              minimumDurationMinutes.map({ (1...1440).contains($0) }) ?? true,
+              maximumDurationMinutes.map({ (1...1440).contains($0) }) ?? true,
+              (minimumDurationMinutes == nil || maximumDurationMinutes == nil || minimumDurationMinutes! <= maximumDurationMinutes!),
+              lastPlayedWithinDays.map({ (1...3650).contains($0) }) ?? true,
               smartPlaylists.count < 20 else { return false }
 
         smartPlaylists.insert(
@@ -189,7 +277,11 @@ final class MusicLibraryStore: ObservableObject {
                 name: name,
                 artistContains: artist,
                 minimumPlays: minimumPlays,
-                sort: sort
+                sort: sort,
+                minimumDurationMinutes: minimumDurationMinutes,
+                maximumDurationMinutes: maximumDurationMinutes,
+                lastPlayedWithinDays: lastPlayedWithinDays,
+                matchMode: matchMode
             ),
             at: 0
         )
