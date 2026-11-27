@@ -22,8 +22,13 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Install Gradle and XcodeGen
-        run: brew install gradle xcodegen
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.5.0"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
 
       - name: Build InnerTubeX iOS XCFramework
         run: gradle --no-daemon --stacktrace :resolver-kmp:assembleMusikKuResolverKitReleaseXCFramework
