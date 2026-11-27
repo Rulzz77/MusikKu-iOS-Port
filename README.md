@@ -27,7 +27,7 @@ Home, Search, and browse details retrieve catalogue metadata and artwork. Select
 ## Requirements
 
 - A Mac with Xcode installed (iOS builds and Simulator require Apple's toolchain).
-- Homebrew, Gradle 9.5.0 or newer, Java 21, and XcodeGen.
+- Homebrew, Gradle 9.8.2 or newer, Java 21, and XcodeGen.
 - For device/TestFlight distribution: Apple Developer signing, provisioning, and App Store Connect setup.
 
 Install XcodeGen:
