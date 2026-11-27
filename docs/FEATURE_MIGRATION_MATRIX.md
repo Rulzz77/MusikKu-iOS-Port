@@ -3,7 +3,7 @@
 | Android MusikKu capability | iOS direction | Status in this starter |
 |---|---|---|
 | Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | Anonymous WEB_REMIX search filters, first-page FEmusic_home shelves, first-page album/artist/playlist browse details, and local save-to-playlist/favorites; metadata only, no paging yet |
-| Remote audio playback | AVPlayer / AVQueuePlayer + InnerTubeX KMP | Direct HTTPS audio resolver and WKWebView WEB_BOTGUARD provider compile in iOS CI; live challenge, stream extraction, and audible playback tests pending |
+| Remote audio playback | AVPlayer / AVQueuePlayer + InnerTubeX KMP | Direct HTTPS resolver and WKWebView WEB_BOTGUARD provider compile; app install/launch smoke test passes in iOS Simulator; live challenge, stream extraction, and audible playback tests pending |
 | Background playback | AVAudioSession `.playback` + iOS background audio mode | Declared; physical-device verification outstanding |
 | Lock-screen / Control Center | MPNowPlayingInfoCenter + MPRemoteCommandCenter | Basic metadata and play/pause/skip/next/previous commands |
 | Play queue / next / previous | Shared pure queue model + native player queue controller | AVPlayer queue controller foundation implemented |
