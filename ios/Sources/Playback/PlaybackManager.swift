@@ -213,9 +213,8 @@ final class PlaybackManager: ObservableObject {
             loadedArtwork = nil
         }
 
-        if let url = track.streamURL,
-           let scheme = url.scheme?.lowercased(),
-           scheme == "https" || scheme == "http" {
+        // Direct online streams must use TLS; the KMP resolver also enforces HTTPS.
+        if let url = track.streamURL, url.scheme?.lowercased() == "https" {
             startPlayer(track: track, url: url, headers: [:])
             return
         }
