@@ -44,8 +44,8 @@ actor MusicCatalogService {
         guard !query.isEmpty else { throw MusicCatalogError.emptyQuery }
 
         let locale = Locale.current
-        let language = locale.languageCode ?? "en"
-        let region = locale.regionCode ?? "US"
+        let language = locale.language.languageCode?.identifier ?? "en"
+        let region = locale.region?.identifier ?? "US"
         let clientVersion = await resolveClientVersion()
 
         guard var components = URLComponents(string: "\(musicOrigin)/youtubei/v1/search") else {
@@ -118,8 +118,8 @@ actor MusicCatalogService {
 
     func browsePage(browseID: String) async throws -> CatalogBrowsePage {
         let locale = Locale.current
-        let language = locale.languageCode ?? "en"
-        let region = locale.regionCode ?? "US"
+        let language = locale.language.languageCode?.identifier ?? "en"
+        let region = locale.region?.identifier ?? "US"
         let clientVersion = await resolveClientVersion()
 
         guard var components = URLComponents(string: "\(musicOrigin)/youtubei/v1/browse") else {
@@ -234,8 +234,8 @@ actor MusicCatalogService {
 
     func homeFeed() async throws -> [CatalogHomeShelf] {
         let locale = Locale.current
-        let language = locale.languageCode ?? "en"
-        let region = locale.regionCode ?? "US"
+        let language = locale.language.languageCode?.identifier ?? "en"
+        let region = locale.region?.identifier ?? "US"
         let clientVersion = await resolveClientVersion()
 
         guard var components = URLComponents(string: "\(musicOrigin)/youtubei/v1/browse") else {
@@ -525,7 +525,6 @@ actor MusicCatalogService {
             .nonEmpty ?? artistPart ?? "Unknown artist"
 
         let albumCredit = Self.browseCredit(subtitleRuns, pageType: "ALBUM")
-        let artistBrowseID = artists.first?.browseID
         let durationSeconds = durationText.flatMap(Self.durationSeconds)
         let rowType = parts.first(where: { typeWords.contains($0.lowercased()) })?.lowercased()
         let isVideo = rowType == "video" || Self.thumbnailIsWide(renderer)
