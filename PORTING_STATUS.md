@@ -1,6 +1,14 @@
 # Porting status
 
-Current state: **native iOS UI with Android-aligned Beranda / Explore / Koleksi navigation, global search, local collections, playback queue, lyrics tools and a Kotlin Multiplatform resolver. It is substantially closer to Android's core workflows, but it is not feature-equivalent or release-ready.**
+Current state on `main`: **PR #1 was squash-merged on 27 November 2026 as `fe5b6e6`. The native iOS port is integrated into main, but it is not yet feature-equivalent, CI-validated at this exact merge commit, or release-ready.**
+
+## Main integration and version
+
+- Pull request #1: merged using squash merge; merge commit `fe5b6e6ae9ede39514c381183c6fc7973714b872`.
+- Marketing version currently configured in `ios/Support/Info.plist`: **0.1.0 (Build 1)**.
+- Bundle identifier template: `id.musikku.ios`; confirm its final availability and Apple Developer Team before signing.
+- The version is a development baseline, not an App Store release. No signed IPA, TestFlight build, App Store submission, or GitHub Release has been published.
+- Post-merge CI: [run #176](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/46016179731) is validating merge commit `fe5b6e6`; result pending at the time this file was updated.
 
 ## Implemented in the current development branch
 
@@ -50,4 +58,4 @@ Current state: **native iOS UI with Android-aligned Beranda / Explore / Koleksi 
 - AppIcon asset-catalog integration and a required-reason privacy manifest have been added; CI now lint-checks these assets. Their inclusion awaits validation by the next successful run.
 - Simulator compilation, launch and IPA packaging do **not** establish live Webpage Attestation compatibility, PoToken generation, YouTube stream extraction, audible playback or physical-device audio behaviour.
 
-Pull request: #1 — phase-1-ui-library-queue to main. The PR remains open and has not been merged. See [Release Readiness](docs/RELEASE_READINESS.md) for the remaining engineering, signing, privacy, licensing and content-rights gates.
+PR #1 has been merged to `main`. See [Release Readiness](docs/RELEASE_READINESS.md) for the remaining engineering, signing, privacy, licensing and content-rights gates.

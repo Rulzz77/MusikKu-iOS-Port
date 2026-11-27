@@ -1,6 +1,6 @@
 # MusikKu iOS — Release Readiness
 
-This document records what must be completed before merging PR #1 and distributing MusikKu iOS. A green CI build is not a substitute for device playback tests, App Store authorization, signing, or content-rights review.
+PR #1 has already been squash-merged into `main` on 27 November 2026 (merge commit `fe5b6e6`). This document records what must be completed before distributing MusikKu iOS. A green CI build is not a substitute for device playback tests, App Store authorization, signing, or content-rights review.
 
 ## Engineering readiness
 
@@ -10,7 +10,7 @@ This document records what must be completed before merging PR #1 and distributi
 - [x] Simulator UI preview artifact
 - [x] Appetize simulator ZIP artifact for browser-based UI checks
 - [x] Unsigned arm64 IPA artifact for sideload testing
-- [ ] Latest playback fallback, root-layout, AppIcon and privacy changes pass a complete CI run
+- [ ] Post-merge CI for main commit `fe5b6e6` passes (run #176)
 - [ ] Physical iPhone: resolve and play multiple ordinary tracks
 - [ ] Physical iPhone: seek, pause/resume, next/previous, repeat and shuffle
 - [ ] Physical iPhone: background playback, lock screen, Control Center and interruptions
@@ -50,4 +50,6 @@ The repository includes GPL-3.0-licensed derivative code and third-party notices
 
 - CI unsigned IPA is for development/sideload validation only; it is not an App Store-ready signed archive.
 - Appetize iOS Simulator sessions are useful for UI and flow testing but do not produce audible output. Real audio verification requires an actual iPhone or another supported audio-capable test environment.
-- PR #1 must remain open until all engineering and policy gates above are satisfied. Merge and release are intentionally not performed by this preparation work.
+- PR #1 is merged. The currently configured application version is **0.1.0 (Build 1)**; this is a development baseline, not a published release.
+- No GitHub Release, signed IPA, TestFlight build or App Store submission has been published. Do not describe this source merge as a public app release.
+- Remaining engineering and policy gates above must be cleared before publishing a signed binary.
