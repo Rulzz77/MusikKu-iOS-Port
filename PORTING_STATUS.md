@@ -14,12 +14,13 @@ Implemented in the current development branch:
 - Search filters for all, songs, videos, albums, artists, and playlists.
 - Search result artwork, artist/title/duration metadata, explicit marker where exposed, and local save-to-favorites for track/video results.
 - Read-only first-page Home feed from `FEmusic_home`, with horizontal shelves and artwork/title/artist metadata parsed from carousel and list renderers.
-- Read-only browse detail sheets for album, artist, and playlist results, including header, artwork, first-page tracks, related shelves, and local favorite actions.
+- Home and Search album/artist/playlist cards open read-only browse details with header, artwork, first-page tracks, and related shelves.
+- Browse detail track rows can be added to local playlists or favorites without requiring an account.
 - Upstream GPL-3.0 license and third-party notices copied into this derivative repository.
 
 Still not integrated:
 - Native audio stream resolver. Search/Home/detail items currently have no playable stream URL and cannot start AVPlayer.
-- Home/search/browse continuation paging, richer album playlist reconciliation, suggestions, and browse navigation from all Home shelves.
+- Home/search/browse continuation paging, richer album playlist reconciliation, suggestions, and browse navigation from every nested shelf.
 - Authenticated Google/YouTube account sessions, account/channel switching, account likes, and server-synced playlists.
 - Other Android catalogue/add-on sources such as JioSaavn and custom modules.
 - Timed lyrics, translations, provider selection, and local TTML import.
@@ -30,5 +31,5 @@ Still not integrated:
 The catalogue adapter makes anonymous read-only requests. It does not send Google cookies or account credentials and does not change any account. Playback still requires a native resolver that returns a valid stream URL from a source authorized for this app.
 
 Validation:
-- Starter, UI/player, catalogue-search, Home-feed, and browse-detail commits passed the GitHub Actions iOS Simulator build.
+- Starter, UI/player, catalogue-search, Home-feed, browse-detail, and local playlist-action commits passed the GitHub Actions iOS Simulator build.
 - Physical-iPhone playback, background audio, route, and lock-screen tests remain outstanding.

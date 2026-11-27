@@ -2,7 +2,7 @@
 
 | Android MusikKu capability | iOS direction | Status in this starter |
 |---|---|---|
-| Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | Anonymous WEB_REMIX search filters, first-page FEmusic_home shelves, and first-page album/artist/playlist browse details; metadata only, no paging yet |
+| Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | Anonymous WEB_REMIX search filters, first-page FEmusic_home shelves, first-page album/artist/playlist browse details, and local save-to-playlist/favorites; metadata only, no paging yet |
 | Remote audio playback | AVPlayer / AVQueuePlayer | AVPlayer foundation; no native stream resolver connected to catalog results yet |
 | Background playback | AVAudioSession `.playback` + iOS background audio mode | Declared; physical-device verification outstanding |
 | Lock-screen / Control Center | MPNowPlayingInfoCenter + MPRemoteCommandCenter | Basic metadata and play/pause/skip/next/previous commands |

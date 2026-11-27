@@ -16,7 +16,8 @@ The project is an actively developed iOS port, not yet a complete feature-equiva
 - Search filters for all, songs, videos, albums, artists, and playlists.
 - Save catalog song/video metadata to the local favorites library.
 - Home shelf cards with artwork, titles, and artist/subtitle metadata.
-- Read-only browse detail sheets for album, artist, and playlist search results, including the page header, first track list, and related shelves.
+- Read-only browse detail sheets for album, artist, and playlist items from Search and Home, including the page header, first track list, and related shelves.
+- Add catalogue tracks from browse details to local playlists or favorites.
 
 Home, Search, and the first browse detail screens retrieve catalogue metadata and artwork. They do not yet resolve playable audio URLs, expose account/library writes, or page through continuation results. The iOS stream resolver and the Android-specific InnerTubeX / PoToken path still need a native iOS implementation.
 
