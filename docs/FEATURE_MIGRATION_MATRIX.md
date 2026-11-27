@@ -11,6 +11,7 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 | Search | WEB_REMIX filters, query suggestions, local recent-search list and result continuation paging | Implemented in source; live suggestions/continuations need runtime validation |
 | Album / artist / playlist pages | Header/artwork, tracks, related shelves, play-all, save/favorite and continuation paging | Implemented in source; deeper nested browse parity remains incomplete |
 | Local playlists / favorites | Create/delete local playlists, add/remove tracks and favorites | Implemented with local UserDefaults persistence; no account required |
+| Spotify playlist import | Public Spotify embed metadata, strict title/primary-artist/duration matching, save matches as a local playlist | Implemented in source without login; incomplete playlists at the 100-row embed boundary are rejected; manual replacement is not yet available |
 | Listening history / statistics | Play counts, last-played time, AVPlayer elapsed listening time and History totals | Implemented in source; stored locally on this device |
 | Mix / Smart Playlists | Minimum plays, optional artist, duration bounds, last-played window, ALL/ANY matching, most-played/recent/most-listened sorting | Substantial local subset implemented; genre/release-year metadata filters remain unavailable |
 | Player / queue | AVPlayer queue, enqueue/remove, next/previous, shuffle, repeat Off/All/One, auto advance and manual reordering | Implemented in source; playback reliability requires physical-device verification |
@@ -23,7 +24,7 @@ This matrix distinguishes source implementation from runtime validation. A nativ
 | Guest-first usage | Local playlists/favorites/history/Smart Mix do not require login | Implemented for local data; no cloud sync |
 | Google / YouTube account, remote likes | Approved OAuth, account/channel switching and account-backed library | Not implemented |
 | Additional Android sources / add-ons | Separate provider adapters and source-specific terms/permissions | Not implemented |
-| External playlist import | Provider-specific import adapters and permission review | Not implemented |
+| External playlist import | Public Spotify playlist URL import only; other providers and account-backed imports remain out of scope | Partial; public playlists only, no manual replacement, and no complete pagination beyond Spotify's public embed payload |
 | Offline downloads | Online-first catalog playback | Not in current iOS scope |
 | Full Android DSP / equalizer / crossfade | Native audio processing and AVPlayer/AVAudioEngine integration | Not implemented |
 | Listen Together / party sync | New native iOS client and protocol testing | Not implemented |
@@ -45,7 +46,8 @@ The provider is a best-effort technical integration. A successful framework buil
 - [ ] Lock-screen / Control Center title, artist, artwork, play, pause, seek and skip.
 - [ ] Phone/Siri interruptions, wired-headphone removal, Bluetooth disconnect and route changes.
 - [ ] Wi-Fi and cellular changes during search and playback.
-- [ ] Local playlists, favorites, history, TTML imports and Smart Mix survive app relaunch.
+- [ ] Local playlists, favorites, history, TTML imports, Smart Mix and Spotify-imported playlists survive app relaunch.
+- [ ] Public Spotify playlist metadata and strict track matching are validated against public, private, empty, malformed and 100+ track playlists.
 - [ ] Lyrics provider fallback and manual provider selection behave when a provider has no match.
 - [ ] Third-party service terms, attribution, GPL-3.0 obligations and privacy disclosures are reviewed before release.
 - [ ] A signed physical-device TestFlight build passes regression testing.

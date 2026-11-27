@@ -357,6 +357,25 @@ final class MusicLibraryStore: ObservableObject {
         return true
     }
 
+    /// Saves successfully matched external tracks as a guest-owned local playlist.
+    /// Duplicate YouTube video IDs are removed while preserving the source order.
+    @discardableResult
+    func importPlaylist(_ rawName: String, tracks importedTracks: [MusicTrack]) -> Int {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name.count <= 80 else { return 0 }
+
+        var seen = Set<String>()
+        let uniqueTracks = importedTracks.filter { track in
+            let id = track.id.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !id.isEmpty && seen.insert(id).inserted
+        }
+        guard !uniqueTracks.isEmpty else { return 0 }
+
+        playlists.insert(MusicPlaylist(name: name, tracks: uniqueTracks), at: 0)
+        persist()
+        return uniqueTracks.count
+    }
+
     func deletePlaylist(id: UUID) {
         playlists.removeAll { $0.id == id }
         persist()

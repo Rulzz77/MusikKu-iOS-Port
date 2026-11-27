@@ -5,6 +5,7 @@ struct LibraryView: View {
     @EnvironmentObject private var playback: PlaybackManager
     @State private var section: LibrarySection = .playlists
     @State private var showingCreatePlaylist = false
+    @State private var showingSpotifyImport = false
     @State private var showingCreateSmartPlaylist = false
     @State private var showingClearHistoryConfirmation = false
     @State private var playlistName = ""
@@ -45,13 +46,23 @@ struct LibraryView: View {
                 }
                 if section == .playlists {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            playlistName = ""
-                            showingCreatePlaylist = true
+                        Menu {
+                            Button {
+                                playlistName = ""
+                                showingCreatePlaylist = true
+                            } label: {
+                                Label("Buat playlist baru", systemImage: "plus")
+                            }
+
+                            Button {
+                                showingSpotifyImport = true
+                            } label: {
+                                Label("Import dari Spotify", systemImage: "arrow.down.doc")
+                            }
                         } label: {
                             Image(systemName: "plus")
                         }
-                        .accessibilityLabel("Buat playlist")
+                        .accessibilityLabel("Buat atau import playlist")
                     }
                 } else if section == .smartMix {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -98,6 +109,11 @@ struct LibraryView: View {
                 }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showingSpotifyImport) {
+                SpotifyPlaylistImportView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .confirmationDialog(
                 "Hapus seluruh riwayat pemutaran?",
