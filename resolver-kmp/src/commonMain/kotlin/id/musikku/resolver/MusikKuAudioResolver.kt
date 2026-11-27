@@ -129,19 +129,19 @@ class MusikKuAudioResolver {
         )
     }
 
-    /** Exclude a client after AVPlayer rejects its media URL so a retry can try another client. */
+    /** Exclude an InnerTubeX profile after AVPlayer rejects its media URL so a retry can try another profile. */
     @Throws(Exception::class)
-    suspend fun markStreamClientFailed(videoId: String, clientName: String) {
+    suspend fun markStreamProfileFailed(videoId: String, profileId: String) {
         require(videoId.matches(Regex("^[A-Za-z0-9_-]{11}$"))) { "Invalid YouTube video ID" }
-        val safeClientName = clientName.trim()
-        require(safeClientName.isNotEmpty() && safeClientName.length <= 128) { "Invalid stream client name" }
+        val safeProfileId = profileId.trim()
+        require(safeProfileId.isNotEmpty() && safeProfileId.length <= 128) { "Invalid stream profile ID" }
 
         failedClientMutex.withLock {
             val now = Clock.System.now().toEpochMilliseconds()
             val existing = failedStreamClients[videoId]
                 ?.takeIf { now - it.failedAtMs in 0L until STREAM_CLIENT_FAILURE_TTL_MS }
             failedStreamClients[videoId] = FailedStreamClients(
-                clients = existing?.clients.orEmpty() + safeClientName,
+                clients = existing?.clients.orEmpty() + safeProfileId,
                 failedAtMs = now
             )
 
@@ -185,7 +185,7 @@ private data class FailedStreamClients(
     val failedAtMs: Long
 )
 
-private const val STREAM_CLIENT_FAILURE_TTL_MS = 5 * 60 * 1000L
+private const val STREAM_CLIENT_FAILURE_TTL_MS = 10 * 60 * 1000L
 private const val MAX_FAILED_STREAM_ENTRIES = 256
 
 /** Mirrors the Android resolver: use embedded player config if the remote config fetch fails. */

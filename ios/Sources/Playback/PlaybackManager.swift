@@ -470,7 +470,7 @@ final class PlaybackManager: ObservableObject {
                     track: track,
                     url: url,
                     headers: headers,
-                    resolvedClientName: resolved.clientName
+                    resolvedProfileID: resolved.profileId
                 )
             } catch {
                 guard !Task.isCancelled, self.currentTrack?.id == track.id else { return }
@@ -488,7 +488,7 @@ final class PlaybackManager: ObservableObject {
         track: MusicTrack,
         url: URL,
         headers: [String: String],
-        resolvedClientName: String? = nil
+        resolvedProfileID: String? = nil
     ) {
         do {
             let session = AVAudioSession.sharedInstance()
@@ -528,11 +528,11 @@ final class PlaybackManager: ObservableObject {
             let message = observedItem.error?.localizedDescription ?? "Sumber audio tidak dapat diputar."
             Task { @MainActor in
                 guard let self else { return }
-                if let failedClient = resolvedClientName,
+                if let failedProfileID = resolvedProfileID,
                    let videoID = track.youtubeVideoID {
-                    try? await self.streamResolver.markStreamClientFailed(
+                    try? await self.streamResolver.markStreamProfileFailed(
                         videoId: videoID,
-                        clientName: failedClient
+                        profileId: failedProfileID
                     )
                 }
                 guard self.player?.currentItem === observedItem,
