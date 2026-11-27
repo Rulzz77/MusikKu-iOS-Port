@@ -65,6 +65,8 @@ actor LyricsService {
     static let shared = LyricsService()
 
     private let session: URLSession
+    private var translationCache: [String: LyricsDocument] = [:]
+    private var translationCacheOrder: [String] = []
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -120,6 +122,172 @@ actor LyricsService {
             artist: artist,
             durationSeconds: track.durationSeconds
         )
+    }
+
+    /// Translates lyric lines on demand while preserving their original timestamps.
+    /// The translation endpoint is unofficial; provider availability can change.
+    func translate(
+        _ document: LyricsDocument,
+        trackID: String,
+        targetLanguage: String
+    ) async -> LyricsDocument? {
+        let target = targetLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty, !document.lines.isEmpty else { return nil }
+
+        let cacheKey = "\(trackID)|\(target)"
+        if let cached = translationCache[cacheKey] {
+            return cached
+        }
+
+        var translatedByIndex: [Int: String] = [:]
+        let batches = makeTranslationBatches(document.lines)
+        guard !batches.isEmpty else { return nil }
+
+        for batch in batches {
+            guard let translated = await requestTranslation(batch, targetLanguage: target),
+                  translated.count == batch.count else {
+                return nil
+            }
+            for (slot, text) in zip(batch, translated) {
+                translatedByIndex[slot.index] = text
+            }
+        }
+
+        guard !translatedByIndex.isEmpty else { return nil }
+        let translatedLines = document.lines.enumerated().map { index, line in
+            guard let text = translatedByIndex[index] else { return line }
+            return LyricsLine(
+                id: line.id,
+                timeMilliseconds: line.timeMilliseconds,
+                text: text,
+                words: []
+            )
+        }
+        let result = LyricsDocument(
+            source: "Terjemahan otomatis • \(target.uppercased())",
+            lines: translatedLines
+        )
+
+        translationCache[cacheKey] = result
+        translationCacheOrder.removeAll { $0 == cacheKey }
+        translationCacheOrder.append(cacheKey)
+        while translationCacheOrder.count > 40 {
+            let oldest = translationCacheOrder.removeFirst()
+            translationCache.removeValue(forKey: oldest)
+        }
+        return result
+    }
+
+    private struct TranslationSlot {
+        let index: Int
+        let text: String
+    }
+
+    private func makeTranslationBatches(_ lines: [LyricsLine]) -> [[TranslationSlot]] {
+        var batches: [[TranslationSlot]] = []
+        var current: [TranslationSlot] = []
+        var currentLength = 0
+
+        func isSectionHeader(_ text: String) -> Bool {
+            text.range(of: #"^\s*\[[^\]]+\]\s*$"#, options: .regularExpression) != nil
+        }
+
+        func flush() {
+            guard !current.isEmpty else { return }
+            batches.append(current)
+            current = []
+            currentLength = 0
+        }
+
+        for (index, line) in lines.enumerated() {
+            let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty, !isSectionHeader(text) else { continue }
+            let addedLength = text.count + (current.isEmpty ? 0 : 16)
+            if !current.isEmpty && currentLength + addedLength > 3_200 {
+                flush()
+            }
+            current.append(TranslationSlot(index: index, text: text))
+            currentLength += addedLength
+        }
+        flush()
+        return batches
+    }
+
+    private func requestTranslation(
+        _ slots: [TranslationSlot],
+        targetLanguage: String
+    ) async -> [String]? {
+        guard !slots.isEmpty,
+              let url = URL(string: "https://translate.googleapis.com/translate_a/single") else {
+            return nil
+        }
+
+        let payload = slots.enumerated().map { index, slot in
+            index == 0 ? slot.text : "\(Self.translationMarker(index - 1))\n\(slot.text)"
+        }.joined(separator: "\n")
+
+        var form = URLComponents()
+        form.queryItems = [
+            URLQueryItem(name: "client", value: "dict-chrome-ex"),
+            URLQueryItem(name: "sl", value: "auto"),
+            URLQueryItem(name: "tl", value: targetLanguage),
+            URLQueryItem(name: "dt", value: "t"),
+            URLQueryItem(name: "q", value: payload)
+        ]
+        guard let formBody = form.percentEncodedQuery?.data(using: .utf8) else { return nil }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 18
+        request.httpBody = formBody
+        request.setValue("application/x-www-form-urlencoded;charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("MusikKu iOS", forHTTPHeaderField: "User-Agent")
+
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode),
+                  let root = try JSONSerialization.jsonObject(with: data) as? [Any],
+                  let rawSegments = root.first as? [Any] else {
+                return nil
+            }
+
+            let translatedBody = rawSegments.compactMap { segment -> String? in
+                guard let values = segment as? [Any] else { return nil }
+                return values.first as? String
+            }.joined()
+            return splitTranslation(translatedBody, expectedCount: slots.count)
+        } catch {
+            return nil
+        }
+    }
+
+    private func splitTranslation(_ value: String, expectedCount: Int) -> [String]? {
+        guard expectedCount > 0 else { return [] }
+        var remaining = value[...]
+        var result: [String] = []
+
+        if expectedCount > 1 {
+            for index in 0..<(expectedCount - 1) {
+                let marker = Self.translationMarker(index)
+                guard let markerRange = remaining.range(of: marker) else { return nil }
+                let text = String(remaining[..<markerRange.lowerBound])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else { return nil }
+                result.append(text)
+                remaining = remaining[markerRange.upperBound...]
+            }
+        }
+
+        let finalText = String(remaining).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !finalText.isEmpty else { return nil }
+        result.append(finalText)
+        return result.count == expectedCount ? result : nil
+    }
+
+    private static func translationMarker(_ index: Int) -> String {
+        "\u{E000}\(String(format: "%04d", index))\u{E001}"
     }
 
     private func fetchBiniLyrics(

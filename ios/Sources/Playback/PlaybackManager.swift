@@ -4,7 +4,7 @@ import MediaPlayer
 import UIKit
 import MusikKuResolverKit
 
-enum PlaybackRepeatMode: String, CaseIterable, Identifiable {
+enum PlaybackRepeatMode: String, CaseIterable, Identifiable, Hashable {
     case off
     case all
     case one

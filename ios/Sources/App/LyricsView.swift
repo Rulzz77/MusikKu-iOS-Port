@@ -1,3 +1,23 @@
+private struct LyricsTranslationTarget: Identifiable, Hashable {
+    let code: String
+    let title: String
+
+    var id: String { code }
+
+    static let all: [LyricsTranslationTarget] = [
+        .init(code: "id", title: "Indonesia"),
+        .init(code: "en", title: "English"),
+        .init(code: "ms", title: "Melayu"),
+        .init(code: "ja", title: "日本語"),
+        .init(code: "ko", title: "한국어"),
+        .init(code: "zh-CN", title: "中文（简体）"),
+        .init(code: "zh-TW", title: "中文（繁體）"),
+        .init(code: "es", title: "Español"),
+        .init(code: "fr", title: "Français"),
+        .init(code: "de", title: "Deutsch")
+    ]
+}
+
 import SwiftUI
 
 struct LyricsSheet: View {
@@ -7,12 +27,21 @@ struct LyricsSheet: View {
     let track: MusicTrack
 
     @State private var document: LyricsDocument?
+    @State private var translatedDocument: LyricsDocument?
+    @State private var showingTranslation = false
+    @State private var isTranslating = false
+    @State private var translationError: String?
+    @State private var translationTarget = UserDefaults.standard.string(forKey: "musikku.lyrics.translation-target.v1") ?? "id"
     @State private var isLoading = true
 
+    private var displayedDocument: LyricsDocument? {
+        showingTranslation ? (translatedDocument ?? document) : document
+    }
+
     private var activeLineID: Int? {
-        guard let document, document.isSynchronized else { return nil }
+        guard let displayedDocument, displayedDocument.isSynchronized else { return nil }
         let position = Int((playback.position * 1_000).rounded())
-        return document.lines.last(where: { ($0.timeMilliseconds ?? Int.max) <= position })?.id
+        return displayedDocument.lines.last(where: { ($0.timeMilliseconds ?? Int.max) <= position })?.id
     }
 
     var body: some View {
@@ -27,7 +56,7 @@ struct LyricsSheet: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let document {
-                    lyricsContent(document)
+                    lyricsContent(displayedDocument ?? document)
                 } else {
                     emptyState
                 }
@@ -48,12 +77,40 @@ struct LyricsSheet: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Picker("Bahasa tujuan", selection: $translationTarget) {
+                            ForEach(LyricsTranslationTarget.all) { target in
+                                Text(target.title).tag(target.code)
+                            }
+                        }
+                        Button {
+                            Task { await translateLyrics() }
+                        } label: {
+                            Label("Terjemahkan lirik", systemImage: "translate")
+                        }
+                        .disabled(document == nil || isTranslating)
+                        if showingTranslation {
+                            Button("Tampilkan lirik asli", systemImage: "text.alignleft") {
+                                showingTranslation = false
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "translate")
+                    }
+                    .accessibilityLabel("Terjemahkan lirik")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Tutup") { dismiss() }
                 }
             }
         }
         .task(id: track.id) {
             await loadLyrics()
+        }
+        .onChange(of: translationTarget) { newValue in
+            UserDefaults.standard.set(newValue, forKey: "musikku.lyrics.translation-target.v1")
+            showingTranslation = false
+            translationError = nil
         }
     }
 
@@ -80,6 +137,30 @@ struct LyricsSheet: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
+
+            if showingTranslation {
+                Text("Terjemahan otomatis • periksa kembali hasilnya bila ada istilah atau nama khusus.")
+                    .font(.caption2)
+                    .foregroundStyle(MusikKuStyle.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+            }
+
+            if isTranslating {
+                HStack(spacing: 8) {
+                    ProgressView().tint(MusikKuStyle.accent)
+                    Text("Menerjemahkan lirik…")
+                        .font(.caption)
+                        .foregroundStyle(MusikKuStyle.secondary)
+                }
+            }
+
+            if let translationError {
+                Text(translationError)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 20)
+            }
 
             ScrollViewReader { proxy in
                 ScrollView {
@@ -162,8 +243,30 @@ struct LyricsSheet: View {
     }
 
     @MainActor
+    private func translateLyrics() async {
+        guard let document, !isTranslating else { return }
+        isTranslating = true
+        translationError = nil
+        defer { isTranslating = false }
+
+        guard let translated = await LyricsService.shared.translate(
+            document,
+            trackID: track.id,
+            targetLanguage: translationTarget
+        ) else {
+            translationError = "Terjemahan belum tersedia. Periksa koneksi atau coba bahasa lain."
+            return
+        }
+        translatedDocument = translated
+        showingTranslation = true
+    }
+
+    @MainActor
     private func loadLyrics() async {
         isLoading = true
+        translatedDocument = nil
+        showingTranslation = false
+        translationError = nil
         defer { isLoading = false }
         document = await LyricsService.shared.lyrics(for: track)
     }
