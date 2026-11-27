@@ -41,6 +41,7 @@ struct ContentView: View {
                 .presentationDragIndicator(.visible)
         }
         .onChange(of: playback.playbackStartID) { _ in
+            library.flushListeningStats()
             guard let track = playback.currentTrack else { return }
             library.recordPlay(track)
         }

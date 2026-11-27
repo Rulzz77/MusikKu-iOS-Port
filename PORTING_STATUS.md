@@ -36,7 +36,7 @@ Still not integrated or not fully verified:
 - Authenticated Google/YouTube account sessions, account/channel switching, account likes, and server-synced playlists.
 - Deeper nested browse parity, continuation for shelves inside complex artist pages, and continuation edge-case compatibility still need live-response testing.
 - Other Android catalogue/add-on sources such as JioSaavn and custom modules.
-- Persistent per-track local TTML import/export; selectable automatic, lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato and LRCLIB providers; on-demand lyric translation to Indonesian, English, Malay, Japanese, Korean, Chinese, Spanish, French and German (line timing preserved).
+- Persistent per-track local TTML import/export (5 MB import cap); selectable automatic, lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato and LRCLIB providers; on-demand lyric translation to Indonesian, English, Malay, Japanese, Korean, Chinese, Spanish, French and German (line timing preserved).
 - Download manager, offline audio, remote recommendations, remaining Smart Playlist metadata filters (genre and release-year are not yet available in the iOS track catalogue), and cross-device sync.
 - Native DSP, equalizer, crossfade, advanced codecs, USB audio, and specialized device-routing parity.
 - TestFlight or App Store release signing.

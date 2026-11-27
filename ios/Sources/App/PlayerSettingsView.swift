@@ -115,6 +115,7 @@ struct PlayerSettingsView: View {
                             Label("Setelah lagu ini selesai", systemImage: "music.note")
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
+                        .disabled(playback.currentTrack == nil)
                         .padding(.top, 2)
                     }
 

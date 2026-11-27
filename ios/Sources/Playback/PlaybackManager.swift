@@ -211,6 +211,17 @@ final class PlaybackManager: ObservableObject {
                     return
                 }
 
+                if remaining > 30 {
+                    let untilFade = remaining - 30
+                    let sleepNanoseconds = UInt64(max(0.1, untilFade) * 1_000_000_000)
+                    do {
+                        try await Task.sleep(nanoseconds: sleepNanoseconds)
+                    } catch {
+                        return
+                    }
+                    continue
+                }
+
                 self.applySleepTimerFade(remainingSeconds: remaining)
                 do {
                     try await Task.sleep(nanoseconds: 500_000_000)
@@ -223,6 +234,7 @@ final class PlaybackManager: ObservableObject {
 
     /// Stops at the end of the currently playing track instead of using a deadline.
     func setSleepTimerAfterTrack() {
+        guard currentTrack != nil else { return }
         cancelSleepTimer()
         sleepTimerAfterTrack = true
     }

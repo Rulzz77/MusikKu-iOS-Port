@@ -189,7 +189,13 @@ struct LyricsSheet: View {
                     if didStartAccessing { url.stopAccessingSecurityScopedResource() }
                 }
                 do {
-                    let data = try Data(contentsOf: url)
+                    let handle = try FileHandle(forReadingFrom: url)
+                    defer { try? handle.close() }
+                    let data = try handle.read(upToCount: 5 * 1_024 * 1_024 + 1) ?? Data()
+                    guard data.count <= 5 * 1_024 * 1_024 else {
+                        fileError = "File TTML terlalu besar. Batas impor adalah 5 MB."
+                        return
+                    }
                     Task {
                         guard let imported = await LyricsService.shared.importTTML(
                             data,

@@ -266,8 +266,8 @@ struct LibraryView: View {
         let minutes = (seconds % 3_600) / 60
         let remainder = seconds % 60
         if hours > 0 { return "\(hours)j \(minutes)m" }
-        if minutes > 0 { return "\(minutes)m \(remainder)d" }
-        return "\(remainder)d"
+        if minutes > 0 { return "\(minutes)m \(remainder) dtk" }
+        return "\(remainder) dtk"
     }
 
     @ViewBuilder
