@@ -11,7 +11,7 @@ Implemented in the current development branch:
 - Persistent local playlists and favorites using versioned UserDefaults JSON keys.
 - Playlist detail can queue tracks and remove items when a track has a resolved stream.
 - AVPlayer queue foundation: play a queue, enqueue, remove a queue item, next, previous, shuffle, repeat-one, and automatic advance.
-- Mini-player and full Now Playing screen with artwork, seek, favorite, add-to-playlist, and queue inspection/removal.
+- Mini-player and full Now Playing screen with artwork, seek, favorite, add-to-playlist, queue inspection/removal, and manual queue reordering.
 - Lock-screen / Control Center play, pause, next, previous, seek, and asynchronously loaded artwork.
 - Audio interruption and headphone-removal pause handling.
 - Read-only YouTube Music search using the Android repository's anonymous WEB_REMIX request pattern, client identity, and filter parameters.

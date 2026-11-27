@@ -86,6 +86,26 @@ final class PlaybackManager: ObservableObject {
         queue.append(track)
     }
 
+    /// Reorders a queue entry while keeping the currently playing track selected.
+    func moveQueueItem(from source: Int, to destination: Int) {
+        guard queue.indices.contains(source), queue.indices.contains(destination),
+              source != destination else { return }
+
+        var updatedQueue = queue
+        let movedTrack = updatedQueue.remove(at: source)
+        updatedQueue.insert(movedTrack, at: destination)
+        queue = updatedQueue
+
+        guard let currentIndex = currentQueueIndex else { return }
+        if currentIndex == source {
+            currentQueueIndex = destination
+        } else if source < currentIndex && destination >= currentIndex {
+            currentQueueIndex = currentIndex - 1
+        } else if source > currentIndex && destination <= currentIndex {
+            currentQueueIndex = currentIndex + 1
+        }
+    }
+
     func removeQueueItem(at index: Int) {
         guard queue.indices.contains(index) else { return }
 

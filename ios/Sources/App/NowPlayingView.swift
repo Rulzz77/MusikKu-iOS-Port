@@ -417,6 +417,11 @@ private struct QueueSheet: View {
                             }
                             .listRowBackground(MusikKuStyle.surface)
                         }
+                        .onMove { source, destination in
+                            guard let from = source.first else { return }
+                            let to = destination > from ? destination - 1 : destination
+                            playback.moveQueueItem(from: from, to: to)
+                        }
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
@@ -426,6 +431,9 @@ private struct QueueSheet: View {
             .navigationTitle("Antrean lagu")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    EditButton()
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Selesai") { dismiss() }
                 }
