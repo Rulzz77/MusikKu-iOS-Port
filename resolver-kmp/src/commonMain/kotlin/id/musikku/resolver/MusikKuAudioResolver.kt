@@ -25,13 +25,14 @@ import kotlin.time.TimeSource
 
 /**
  * Audio-only resolver shared with the Android MusikKu implementation through
- * the same InnerTubeX KMP library version. SABR and HLS are intentionally
- * disabled because AVPlayer consumes direct HTTP audio assets.
+ * InnerTubeX v0.13.2 for the iOS target. The Android repository remains
+ * separate and unchanged. SABR and HLS are intentionally disabled because
+ * AVPlayer consumes direct HTTP audio assets.
  *
  * Remote player configs are cached persistently on iOS so cipher changes can
  * be refreshed without requiring an app update. The platform supplies an
- * initial WEB_BOTGUARD token provider; attestation-gated streams may still be
- * refused when the live challenge cannot be initialized or completed.
+ * anonymous WEBPAGE_ATTESTATION provider backed by a non-persistent WKWebView;
+ * live challenge and media compatibility still require physical-device tests.
  */
 class MusikKuAudioResolver {
     private val httpClient: HttpClient = createResolverHttpClient()
@@ -73,8 +74,8 @@ class MusikKuAudioResolver {
      * Resolves a YouTube Music video ID to a direct HTTPS audio URL and the
      * request headers required by its selected playback client.
      *
-     * The iOS host may mint short-lived WEB_BOTGUARD tokens in an isolated
-     * WKWebView session. No Google account cookie is attached to the request.
+     * The iOS host may mint short-lived Webpage Attestation tokens in an isolated
+     * WKWebView session. No account cookie is attached to the request.
      */
     @Throws(Exception::class)
     suspend fun resolve(

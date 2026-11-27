@@ -21,14 +21,14 @@ Current state: **native iOS UI with Android-aligned Beranda / Explore / Koleksi 
 - Lyrics providers: automatic fallback or manual selection of lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato and LRCLIB.
 - On-demand lyric translation to Indonesian, English, Malay, Japanese, Korean, Simplified/Traditional Chinese, Spanish, French and German. Original line timestamps are preserved; translated lines use line-level rather than syllable karaoke timing.
 - Persistent per-track local TTML import/export with line, word and syllable timestamps; imported files are size-limited to 5 MB and can be removed from the lyrics menu.
-- Kotlin Multiplatform resolver-kmp module pinned to the same InnerTubeX v0.7.0 dependency used by Android. InnerTubeX v0.7.0 supplies its own embedded player-config fallback; profiles rejected by AVPlayer are excluded per video for 10 minutes using a monotonic clock, and cipher refresh is scheduled asynchronously after the rejection.
-- Ktor Darwin iOS transport with shared cookie storage disabled for both resolver and BotGuard HTTP sessions; HTTPS direct-audio stream handoff to AVPlayer, persistent remote player-config cache, and per-request client playback nonce.
-- Initial iOS WEB_BOTGUARD provider using a non-persistent WKWebView. Visitor/video-bound token values are memory-only; Ktor sessions do not inherit or persist shared Safari/Google account cookies.
+- Kotlin Multiplatform resolver-kmp now consumes InnerTubeX v0.13.2 for iOS; the Android repository remains untouched. The library supplies its current player-config/cipher and stream-selection pipeline. Profiles rejected by AVPlayer are excluded per video for 10 minutes using a monotonic clock, and cipher refresh is scheduled asynchronously after rejection.
+- Ktor Darwin 3.6.0 iOS transport with shared cookie storage disabled for both resolver and token HTTP sessions; HTTPS direct-audio handoff to AVPlayer, persistent remote player-config cache, and a per-request client playback nonce.
+- iOS WEBPAGE_ATTESTATION provider: watch-page challenge parsing, trusted HTTPS interpreter validation, and GenerateIT exchange run with a non-persistent WKWebView. The provider rejects authenticated cookies, sends only a static consent preference, and keeps visitor/video-bound token values in memory only.
 - GPL-3.0 license and third-party attribution notices copied into the derivative repository.
 
 ## Not integrated or not fully verified
 
-- Live BotGuard challenge execution, visitor/video PoToken generation, attestation-gated stream extraction and audible playback have not yet been verified on a physical iPhone.
+- The Webpage Attestation provider compiles and its framework packages successfully, but live YouTube challenge execution, visitor/video PoToken generation, attestation-gated stream extraction, and audible playback have not yet been verified on a physical iPhone.
 - Physical-device background playback, lock-screen interaction, Bluetooth/headset routing, interruptions and Wi-Fi/cellular handoff still need regression testing.
 - Authenticated Google/YouTube account sessions, account/channel switching, account-backed likes and cloud-synced playlists are not implemented.
 - Deeper nested browse parity and Android-specific remote recommendations remain incomplete.
@@ -40,10 +40,11 @@ Current state: **native iOS UI with Android-aligned Beranda / Explore / Koleksi 
 
 ## Validation
 
-- [GitHub Actions run #103](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45980305322) passed at commit `f5d649e`: InnerTubeX XCFramework, XcodeGen generation, Simulator compile and launch, unsigned arm64 iPhone build, IPA packaging and artifact upload. Artifact: `MusikKu-iOS-unsigned-IPA` (about 3.83 MB), expires 4 December 2026. This build predates the final cookie-storage isolation change.
-- [Run #104](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45981745037) is validating commit `33dfac7`, which disables shared iOS cookie storage on the resolver's main Ktor Darwin client as well as the BotGuard client. Its result is pending.
-- Simulator launch and unsigned IPA packaging prove build/install viability; they do not establish live BotGuard compatibility, PoToken generation, YouTube stream extraction or audible playback.
-- QuickJS is pinned to 1.0.18 with Kotlin Multiplatform 2.4.21 and Gradle 9.8.2 for the current iOS target.
-- Physical-iPhone playback, background audio, audio routing and lock-screen tests remain outstanding.
+- [GitHub Actions run #136](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45985450447) passed at commit `0a0df46`: InnerTubeX v0.13.2 iOS XCFramework build, XcodeGen project generation, iOS Simulator compile, **5 unit tests with 0 failures**, Simulator install/launch smoke test, unsigned arm64 iPhone IPA packaging, and artifact upload.
+- Artifact: [MusikKu-iOS-unsigned-IPA](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45985450447/artifacts/15191644889), 3,575,112 bytes (about 3.58 MB), SHA-256 `e5d6e439ffd0913ff45ea480a77ba6218f1caceda2dc735a498bf1c7a157da31`; it expires 4 December 2026.
+- The CI test suite covers public Spotify playlist URL parsing (3 cases), local playlist deduplication/persistence (1 case), and Smart Playlist play-count/duration filtering (1 case).
+- Simulator compile, launch, and unsigned IPA packaging verify build/install viability. They do **not** establish live Webpage Attestation compatibility, PoToken generation, YouTube stream extraction, audible playback, or physical-device audio behaviour.
+- The physical-iPhone validation list remains outstanding: stream playback, screen-locked background playback, lock screen/Control Center, interruptions, Bluetooth/headset routing, and Wi-Fi/cellular handoff.
+- The IPA is unsigned for personal Sideloadly testing; it is not a TestFlight or App Store release build.
 
 Pull request: #1 — phase-1-ui-library-queue to main. The PR remains open and has not been merged.

@@ -21,7 +21,7 @@ Implemented in source on branch phase-1-ui-library-queue:
 - Lyrics providers with automatic fallback or manual source selection: lrc.red, BiniLyrics, BetterLyrics, BetterLyrics Portato and LRCLIB.
 - On-demand lyrics translation to Indonesian, English, Malay, Japanese, Korean, Chinese, Spanish, French and German.
 - Persistent per-track TTML import/export, retaining line/word/syllable timing where available.
-- Kotlin Multiplatform InnerTubeX v0.7.0 resolver, Ktor Darwin, direct HTTPS stream handoff to AVPlayer and a non-persistent WKWebView BotGuard provider. InnerTubeX supplies its built-in embedded player-config fallback; after AVPlayer rejects a stream, that profile is excluded for 10 minutes and cipher refresh is scheduled in the background. Both Ktor Darwin sessions disable shared iOS cookie storage.
+- Kotlin Multiplatform InnerTubeX v0.13.2 resolver for the iOS target, Ktor Darwin 3.6.0, direct HTTPS stream handoff to AVPlayer and an anonymous Webpage Attestation provider using a non-persistent WKWebView. The Android repository is unchanged. After AVPlayer rejects a stream, that profile is excluded for 10 minutes and cipher refresh is scheduled in the background. Both Ktor Darwin sessions disable shared iOS cookie storage.
 
 Local playlists, favorites, search history, listening stats and Smart Playlist rules do not require a login. There is no Google account/cloud sync yet. The Smart Playlist engine is still narrower than Android because genre and release-year metadata is not reliably available in the iOS catalogue model.
 
@@ -29,8 +29,9 @@ Local playlists, favorites, search history, listening stats and Smart Playlist r
 
 GitHub Actions builds the InnerTubeX iOS XCFramework, generates the Xcode project, compiles for iOS Simulator, launches the app in an iPhone Simulator and exports an unsigned arm64 IPA for Sideloadly.
 
-- [Run #103](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45980305322) succeeded at commit `f5d649e`: XCFramework, Simulator compile and launch, unsigned iPhone IPA packaging and artifact upload. The `MusikKu-iOS-unsigned-IPA` artifact is about 3.83 MB and expires 4 December 2026; it predates the final cookie-storage isolation change.
-- [Run #104](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45981745037) is validating the newer commit `33dfac7`, which disables shared cookie storage on the main resolver HTTP client. Its result is pending.
+- [Run #136](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45985450447) succeeded at commit `0a0df46`: InnerTubeX v0.13.2 XCFramework, XcodeGen, Simulator compile and launch, **5 unit tests (0 failures)**, unsigned arm64 iPhone IPA packaging and artifact upload.
+- [Download the unsigned IPA artifact](https://github.com/Rulzz77/MusikKu-iOS-Port/actions/runs/45985450447/artifacts/15191644889) (3.58 MB; expires 4 December 2026).
+
 - An unsigned IPA is for personal device testing with Sideloadly, not an App Store/TestFlight signed release.
 - A build or Simulator launch does not verify live BotGuard challenge compatibility, PoToken generation, stream extraction or audible playback.
 
