@@ -140,6 +140,13 @@ struct LyricsSheet: View {
                         } label: {
                             Label("Impor file TTML", systemImage: "square.and.arrow.down")
                         }
+                        if hasImportedTTML {
+                            Button(role: .destructive) {
+                                Task { await removeImportedTTML() }
+                            } label: {
+                                Label("Hapus TTML lokal", systemImage: "trash")
+                            }
+                        }
                         Button {
                             Task { await prepareTTMLExport() }
                         } label: {
@@ -186,6 +193,7 @@ struct LyricsSheet: View {
                     Task {
                         guard let imported = await LyricsService.shared.importTTML(
                             data,
+                            trackID: track.id,
                             sourceName: url.deletingPathExtension().lastPathComponent
                         ) else {
                             fileError = "File tidak valid atau tidak berisi baris TTML yang dapat dibaca."
@@ -195,6 +203,8 @@ struct LyricsSheet: View {
                         translatedDocument = nil
                         showingTranslation = false
                         translationError = nil
+                        hasImportedTTML = true
+                        selectedProvider = .automatic
                         fileError = nil
                     }
                 } catch {
@@ -398,6 +408,17 @@ struct LyricsSheet: View {
         showingTranslation = false
         translationError = nil
         defer { isLoading = false }
+        hasImportedTTML = await LyricsService.shared.hasImportedTTML(trackID: track.id)
         document = await LyricsService.shared.lyrics(for: track, provider: selectedProvider)
+    }
+
+    @MainActor
+    private func removeImportedTTML() async {
+        LyricsService.shared.deleteImportedTTML(trackID: track.id)
+        hasImportedTTML = false
+        selectedProvider = .automatic
+        translatedDocument = nil
+        showingTranslation = false
+        await loadLyrics()
     }
 }

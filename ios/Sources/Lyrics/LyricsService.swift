@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 enum LyricsProvider: String, CaseIterable, Identifiable, Hashable {
     case automatic
@@ -117,6 +118,11 @@ actor LyricsService {
         let artist = Self.cleanArtist(track.artist)
         guard !title.isEmpty, !artist.isEmpty else { return nil }
 
+        if provider == .automatic,
+           let imported = loadImportedTTML(trackID: track.id) {
+            return imported
+        }
+
         switch provider {
         case .automatic:
             if let lrcRed = await fetchLrcRed(
@@ -196,6 +202,145 @@ actor LyricsService {
         }
     }
 
+
+    /// Imports and stores a local TTML file for this track on the device.
+    func importTTML(_ data: Data, trackID: String, sourceName: String) -> LyricsDocument? {
+        guard !trackID.isEmpty, trackID.count <= 512,
+              !data.isEmpty, data.count <= 5 * 1_024 * 1_024,
+              let text = String(data: data, encoding: .utf8),
+              text.localizedCaseInsensitiveContains("<tt") else {
+            return nil
+        }
+        let lines = Self.parseTTML(text)
+        guard !lines.isEmpty,
+              let url = importedTTMLURL(trackID: trackID) else { return nil }
+
+        do {
+            let directory = url.deletingLastPathComponent()
+            try FileManager.default.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true
+            )
+            try data.write(to: url, options: .atomic)
+        } catch {
+            return nil
+        }
+
+        let safeName = sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return LyricsDocument(
+            source: safeName.isEmpty ? "TTML lokal" : "TTML • \(safeName)",
+            lines: lines
+        )
+    }
+
+    func hasImportedTTML(trackID: String) -> Bool {
+        guard let url = importedTTMLURL(trackID: trackID) else { return false }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
+    func deleteImportedTTML(trackID: String) {
+        guard let url = importedTTMLURL(trackID: trackID) else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    private func loadImportedTTML(trackID: String) -> LyricsDocument? {
+        guard let url = importedTTMLURL(trackID: trackID),
+              let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let size = attributes[.size] as? NSNumber,
+              size.intValue > 0, size.intValue <= 5 * 1_024 * 1_024,
+              let data = try? Data(contentsOf: url),
+              let text = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        let lines = Self.parseTTML(text)
+        guard !lines.isEmpty else { return nil }
+        return LyricsDocument(source: "TTML lokal", lines: lines)
+    }
+
+    private func importedTTMLURL(trackID: String) -> URL? {
+        guard !trackID.isEmpty, trackID.count <= 512,
+              let root = FileManager.default.urls(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask
+              ).first else {
+            return nil
+        }
+        let digest = SHA256.hash(data: Data(trackID.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return root
+            .appendingPathComponent("MusikKu", isDirectory: true)
+            .appendingPathComponent("ImportedLyrics", isDirectory: true)
+            .appendingPathComponent("\(digest).ttml")
+    }
+
+    /// Exports line, word and syllable timestamps to a compact TTML document.
+    func exportTTML(_ document: LyricsDocument) -> Data? {
+        guard !document.lines.isEmpty else { return nil }
+
+        var xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <tt xmlns="http://www.w3.org/ns/ttml" xml:lang="und">
+          <body><div>
+        """
+
+        for (index, line) in document.lines.enumerated() {
+            let nextStart = document.lines.dropFirst(index + 1)
+                .compactMap(\.timeMilliseconds)
+                .first
+            let wordEnd = line.words.map(\.endMilliseconds).max()
+            let start = line.timeMilliseconds ?? line.words.first?.startMilliseconds
+            let inferredEnd = wordEnd ?? start.map { $0 + 3_000 }
+            let end: Int?
+            if let candidate = nextStart, let start, candidate > start {
+                end = candidate
+            } else {
+                end = inferredEnd
+            }
+
+            xml += "\n    <p"
+            if let start { xml += " begin=\"\(Self.ttmlTime(start))\"" }
+            if let end, let start, end > start { xml += " end=\"\(Self.ttmlTime(end))\"" }
+            xml += " xml:space=\"preserve\">"
+
+            if line.words.isEmpty {
+                xml += Self.escapeXML(line.text)
+            } else {
+                for (wordIndex, word) in line.words.enumerated() {
+                    if wordIndex > 0 { xml += " " }
+                    if word.syllables.count >= 2 {
+                        let characters = Array(word.text)
+                        for syllable in word.syllables {
+                            let lower = max(0, min(characters.count, syllable.startCharacter))
+                            let upper = max(lower, min(characters.count, syllable.endCharacter))
+                            let text = String(characters[lower..<upper])
+                            guard !text.isEmpty else { continue }
+                            xml += "<span begin=\"\(Self.ttmlTime(syllable.startMilliseconds))\" end=\"\(Self.ttmlTime(syllable.endMilliseconds))\">\(Self.escapeXML(text))</span>"
+                        }
+                    } else {
+                        xml += "<span begin=\"\(Self.ttmlTime(word.startMilliseconds))\" end=\"\(Self.ttmlTime(word.endMilliseconds))\">\(Self.escapeXML(word.text))</span>"
+                    }
+                }
+            }
+            xml += "</p>"
+        }
+
+        xml += "\n  </div></body>\n</tt>\n"
+        return xml.data(using: .utf8)
+    }
+
+    private static func ttmlTime(_ milliseconds: Int) -> String {
+        String(format: "%.3fs", Double(max(0, milliseconds)) / 1_000)
+    }
+
+    private static func escapeXML(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
+    }
 
     private func fetchBiniLyrics(
         title: String,
