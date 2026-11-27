@@ -22,7 +22,7 @@ The project is an actively developed iOS port, not yet a complete feature-equiva
 - Add catalogue tracks from browse details to local playlists or favorites.
 - Initial iOS WEB_BOTGUARD token-provider integration using an isolated, non-persistent WKWebView and Ktor Darwin. It caches visitor-bound streaming tokens in memory and generates video-ID-bound player tokens without reading or attaching Google account cookies.
 
-Home, Search, and browse details retrieve catalogue metadata and artwork. Selecting Play hands a YouTube song/video ID to the KMP resolver, which attempts to extract a direct HTTPS audio URL and passes the required request headers to AVPlayer. Remote player config is cached on iOS and each extraction uses a client playback nonce. The resolver now supplies an initial iOS WEB_BOTGUARD provider. GitHub Actions passed the Kotlin/Native XCFramework build, XcodeGen project generation, and iOS Simulator compile at commit `624ffe1`. The live WKWebView challenge, token minting, stream extraction, and audible playback have not yet been verified on an iPhone or simulator runtime. The provider does not read or attach Google account cookies. A successful compile is not proof of audible playback.
+Home, Search, and browse details retrieve catalogue metadata and artwork. Selecting Play hands a YouTube song/video ID to the KMP resolver, which attempts to extract a direct HTTPS audio URL and passes the required request headers to AVPlayer. Remote player config is cached on iOS and each extraction uses a client playback nonce. GitHub Actions passed the Kotlin/Native XCFramework build, XcodeGen project generation, and iOS Simulator compile at commit `b0a5aeb`. The workflow also installed MusikKu in an iPhone Simulator and confirmed that the app process remained alive during a 10-second launch smoke test. QuickJS `1.0.18` with Kotlin Multiplatform `2.4.21` and Gradle `9.8.2` removed the previous QuickJS simulator linker warnings. The only remaining build warning is the expected App Intents metadata skip because this app does not use `AppIntents.framework`. The smoke test verifies install and startup only; live WKWebView challenge execution, PoToken minting, stream extraction, and audible playback still require runtime testing on a physical iPhone. The provider does not read or attach Google account cookies.
 
 ## Requirements
 
@@ -57,7 +57,7 @@ open ios/MusikKu.xcodeproj
 ## Important limitations
 
 - Search is connected to the Android project's anonymous WEB_REMIX catalogue request shape, but service availability and response changes are controlled by the third-party endpoint.
-- Search/Home Play actions are wired to InnerTubeX and AVPlayer. The BotGuard provider compiles in CI, but live challenge compatibility, token generation, stream extraction, and audible playback are not yet confirmed on an iPhone or simulator runtime.
+- Search/Home Play actions are wired to InnerTubeX and AVPlayer. The resolver and app compile in CI, and the app installs and launches in iOS Simulator; live BotGuard challenge compatibility, token generation, stream extraction, and audible playback on a physical iPhone remain unverified.
 - Background audio is declared and the AVAudioSession is configured, but it still needs physical-iPhone verification.
 - Local playlists and favorites are stored on the current device only; no login or cloud sync is implemented.
 - The project does not currently provide APK-style self-updates. iOS distribution uses TestFlight / App Store channels.
