@@ -3,7 +3,7 @@
 | Android MusikKu capability | iOS direction | Status in this starter |
 |---|---|---|
 | Discover / search catalog | Authorized provider adapter over URLSession / Ktor Darwin | Anonymous WEB_REMIX search filters, first-page FEmusic_home shelves, first-page album/artist/playlist browse details, and local save-to-playlist/favorites; metadata only, no paging yet |
-| Remote audio playback | AVPlayer / AVQueuePlayer + InnerTubeX KMP | First iOS resolver integration added; direct HTTPS audio only; PoToken/attestation not yet ported; CI pending |
+| Remote audio playback | AVPlayer / AVQueuePlayer + InnerTubeX KMP | First iOS resolver added; direct HTTPS audio; WKWebView WEB_BOTGUARD provider added; CI and live challenge tests pending |
 | Background playback | AVAudioSession `.playback` + iOS background audio mode | Declared; physical-device verification outstanding |
 | Lock-screen / Control Center | MPNowPlayingInfoCenter + MPRemoteCommandCenter | Basic metadata and play/pause/skip/next/previous commands |
 | Play queue / next / previous | Shared pure queue model + native player queue controller | AVPlayer queue controller foundation implemented |
@@ -26,7 +26,7 @@
 
 ## Resolver architecture
 
-The iOS target consumes a small Kotlin Multiplatform framework built from `resolver-kmp`. It pins InnerTubeX `v0.7.0`, matching the Android repository. The iOS adapter uses Ktor Darwin and requests direct audio streams with HLS/SABR disabled before passing the HTTPS URL and request headers to AVPlayer. iOS PoToken/browser attestation and authenticated account sessions are not yet implemented.
+The iOS target consumes a small Kotlin Multiplatform framework built from `resolver-kmp`. It pins InnerTubeX `v0.7.0`, matching the Android repository. The iOS adapter uses Ktor Darwin and requests direct audio streams with HLS/SABR disabled before passing the HTTPS URL and request headers to AVPlayer. An initial WEB_BOTGUARD provider now runs the challenge JavaScript in a non-persistent WKWebView and sends fixed HTTPS requests through Ktor Darwin. It keeps tokens in memory, binds one token to visitorData and another to the video ID, and does not use account cookies. Live challenge compatibility and physical-device playback still need validation. Authenticated account sessions are not implemented.
 
 ## Source and license alignment
 
