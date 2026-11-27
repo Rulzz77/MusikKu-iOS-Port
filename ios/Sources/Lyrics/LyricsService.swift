@@ -78,6 +78,23 @@ actor LyricsService {
         let artist = Self.cleanArtist(track.artist)
         guard !title.isEmpty, !artist.isEmpty else { return nil }
 
+        if let lrcRed = await fetchLrcRed(
+            title: title,
+            artist: artist,
+            durationSeconds: track.durationSeconds
+        ) {
+            return lrcRed
+        }
+
+        if let bini = await fetchBiniLyrics(
+            title: title,
+            artist: artist,
+            album: track.album,
+            durationSeconds: track.durationSeconds
+        ) {
+            return bini
+        }
+
         if let betterLyrics = await fetchBetterLyrics(
             title: title,
             artist: artist,
@@ -87,6 +104,17 @@ actor LyricsService {
             return betterLyrics
         }
 
+        if let portato = await fetchBetterLyrics(
+            title: title,
+            artist: artist,
+            album: track.album,
+            durationSeconds: track.durationSeconds,
+            endpoint: "https://lyrics-api.boidu.dev/qq/getLyrics",
+            sourceName: "BetterLyrics Portato"
+        ) {
+            return portato
+        }
+
         return await fetchLrcLib(
             title: title,
             artist: artist,
@@ -94,13 +122,122 @@ actor LyricsService {
         )
     }
 
-    private func fetchBetterLyrics(
+    private func fetchBiniLyrics(
         title: String,
         artist: String,
         album: String?,
         durationSeconds: Int?
     ) async -> LyricsDocument? {
-        guard var components = URLComponents(string: "https://lyrics-api.boidu.dev/getLyrics") else {
+        guard var components = URLComponents(string: "https://lyrics-api.binimum.org/") else {
+            return nil
+        }
+
+        var queryItems = [
+            URLQueryItem(name: "track", value: title),
+            URLQueryItem(name: "artist", value: artist)
+        ]
+        if let album, !album.isEmpty {
+            queryItems.append(URLQueryItem(name: "album", value: album))
+        }
+        if let durationSeconds, durationSeconds > 0 {
+            queryItems.append(URLQueryItem(name: "duration", value: String(durationSeconds)))
+        }
+        components.queryItems = queryItems
+
+        guard let url = components.url,
+              let body = await getData(url),
+              let root = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let candidates = root["results"] as? [[String: Any]] else {
+            return nil
+        }
+
+        let matched = candidates.first { candidate in
+            Self.matches(
+                title: title,
+                artist: artist,
+                durationSeconds: durationSeconds,
+                candidateTitle: candidate["track_name"] as? String,
+                candidateArtist: candidate["artist_name"] as? String,
+                candidateDuration: candidate["duration"] as? Double
+            ) && candidate["isrc"] as? String != nil &&
+                candidate["lyricsUrl"] as? String != nil
+        }
+
+        guard let matched,
+              let lyricsURLString = matched["lyricsUrl"] as? String,
+              let lyricsURL = URL(string: lyricsURLString),
+              Self.isValidISRC(matched["isrc"] as? String),
+              let ttml = await getText(
+                lyricsURL,
+                accept: "application/xml, text/xml, text/plain, */*"
+              ) else {
+            return nil
+        }
+
+        let lines = Self.parseTTML(ttml)
+        return lines.isEmpty ? nil : LyricsDocument(source: "BiniLyrics", lines: lines)
+    }
+
+    private func fetchLrcRed(
+        title: String,
+        artist: String,
+        durationSeconds: Int?
+    ) async -> LyricsDocument? {
+        guard var searchComponents = URLComponents(string: "https://lrc.red/search.json") else {
+            return nil
+        }
+        searchComponents.queryItems = [
+            URLQueryItem(name: "q", value: "\(title) \(artist)")
+        ]
+
+        guard let searchURL = searchComponents.url,
+              let body = await getData(searchURL),
+              let root = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let hits = root["hits"] as? [[String: Any]] else {
+            return nil
+        }
+
+        let matched = hits
+            .filter { hit in
+                Self.matches(
+                    title: title,
+                    artist: artist,
+                    durationSeconds: durationSeconds,
+                    candidateTitle: hit["title"] as? String,
+                    candidateArtist: hit["artist"] as? String,
+                    candidateDuration: hit["duration"] as? Double
+                ) && Self.isValidISRC(hit["isrc"] as? String)
+            }
+            .min {
+                abs(($0["duration"] as? Double ?? Double(durationSeconds ?? 0))
+                    - Double(durationSeconds ?? 0))
+                <
+                abs(($1["duration"] as? Double ?? Double(durationSeconds ?? 0))
+                    - Double(durationSeconds ?? 0))
+            }
+
+        guard let isrc = matched?["isrc"] as? String,
+              let lyricsURL = URL(string: "https://lrc.red/s/\(isrc.uppercased()).ttml"),
+              let ttml = await getText(
+                lyricsURL,
+                accept: "application/xml, text/xml, text/plain, */*"
+              ) else {
+            return nil
+        }
+
+        let lines = Self.parseTTML(ttml)
+        return lines.isEmpty ? nil : LyricsDocument(source: "lrc.red", lines: lines)
+    }
+
+    private func fetchBetterLyrics(
+        title: String,
+        artist: String,
+        album: String?,
+        durationSeconds: Int?,
+        endpoint: String = "https://lyrics-api.boidu.dev/getLyrics",
+        sourceName: String = "BetterLyrics"
+    ) async -> LyricsDocument? {
+        guard var components = URLComponents(string: endpoint) else {
             return nil
         }
 
@@ -124,16 +261,16 @@ actor LyricsService {
 
         let timedLines = Self.parseTTML(payload)
         if !timedLines.isEmpty {
-            return LyricsDocument(source: "BetterLyrics", lines: timedLines)
+            return LyricsDocument(source: sourceName, lines: timedLines)
         }
 
         let lrcLines = Self.parseLRC(payload)
         if !lrcLines.isEmpty {
-            return LyricsDocument(source: "BetterLyrics", lines: lrcLines)
+            return LyricsDocument(source: sourceName, lines: lrcLines)
         }
 
         let plainLines = Self.parsePlain(payload)
-        return plainLines.isEmpty ? nil : LyricsDocument(source: "BetterLyrics", lines: plainLines)
+        return plainLines.isEmpty ? nil : LyricsDocument(source: sourceName, lines: plainLines)
     }
 
     private func fetchLrcLib(
@@ -261,6 +398,14 @@ actor LyricsService {
         }
         components.queryItems = items
         return components.url
+    }
+
+    private static func isValidISRC(_ raw: String?) -> Bool {
+        guard let raw else { return false }
+        return raw.uppercased().range(
+            of: #"^[A-Z]{2}[A-Z0-9]{3}[0-9]{7}$"#,
+            options: .regularExpression
+        ) != nil
     }
 
     private static func matches(
