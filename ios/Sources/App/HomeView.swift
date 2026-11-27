@@ -3,6 +3,10 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var playback: PlaybackManager
     @EnvironmentObject private var library: MusicLibraryStore
+    @State private var homeShelves: [CatalogHomeShelf] = []
+    @State private var isLoadingHome = false
+    @State private var homeErrorMessage: String?
+    @State private var didLoadHome = false
     let onExplore: () -> Void
 
     var body: some View {
@@ -20,7 +24,7 @@ struct HomeView: View {
                             .foregroundStyle(MusikKuStyle.secondary)
                     }
 
-                    catalogCard
+                    homeFeedContent
                     playerCard
 
                     VStack(alignment: .leading, spacing: 12) {
@@ -44,6 +48,73 @@ struct HomeView: View {
             }
             .background(MusikKuStyle.background.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
+            .task {
+                await loadHomeFeed()
+            }
+        }
+    }
+
+    private var homeFeedContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if homeShelves.isEmpty {
+                catalogCard
+
+                if isLoadingHome {
+                    HStack(spacing: 10) {
+                        ProgressView().tint(MusikKuStyle.accent)
+                        Text("Memuat rekomendasi MusikKu…")
+                            .font(.caption)
+                            .foregroundStyle(MusikKuStyle.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 8)
+                }
+
+                if let homeErrorMessage {
+                    VStack(alignment: .leading, spacing: 9) {
+                        Text(homeErrorMessage)
+                            .font(.caption)
+                            .foregroundStyle(MusikKuStyle.secondary)
+
+                        Button {
+                            didLoadHome = false
+                            Task { await loadHomeFeed() }
+                        } label: {
+                            Label("Muat ulang Beranda", systemImage: "arrow.clockwise")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(MusikKuStyle.accent)
+                    }
+                }
+            } else {
+                ForEach(homeShelves) { shelf in
+                    CatalogHomeShelfSection(shelf: shelf)
+                }
+
+                Text("Katalog menampilkan metadata dan sampul. Pemutaran lagu akan aktif setelah resolver audio iOS terhubung.")
+                    .font(.caption)
+                    .foregroundStyle(MusikKuStyle.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    @MainActor
+    private func loadHomeFeed() async {
+        guard !didLoadHome else { return }
+        didLoadHome = true
+        isLoadingHome = true
+        homeErrorMessage = nil
+        defer { isLoadingHome = false }
+
+        do {
+            homeShelves = try await MusicCatalogService.shared.homeFeed()
+            if homeShelves.isEmpty {
+                homeErrorMessage = "Belum ada rekomendasi yang dikirim katalog untuk sesi ini."
+            }
+        } catch {
+            homeErrorMessage = error.localizedDescription
         }
     }
 
@@ -82,7 +153,7 @@ struct HomeView: View {
 
                 Spacer()
 
-                Text("BELUM TERHUBUNG")
+                Text(isLoadingHome ? "MEMUAT" : (homeErrorMessage == nil ? "KATALOG" : "PERIKSA KONEKSI"))
                     .font(.system(size: 9, weight: .bold))
                     .tracking(0.6)
                     .padding(.horizontal, 9)
@@ -245,5 +316,84 @@ private struct LibrarySummaryCard: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+
+private struct CatalogHomeShelfSection: View {
+    let shelf: CatalogHomeShelf
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(shelf.title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                if !shelf.subtitle.isEmpty {
+                    Text(shelf.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(MusikKuStyle.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(shelf.items) { item in
+                        CatalogHomeItemCard(item: item)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+}
+
+private struct CatalogHomeItemCard: View {
+    let item: CatalogItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            AsyncImage(url: item.artworkURL) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                case .empty:
+                    placeholder.overlay {
+                        ProgressView().tint(MusikKuStyle.accent)
+                    }
+                case .failure:
+                    placeholder
+                @unknown default:
+                    placeholder
+                }
+            }
+            .frame(width: 142, height: 142)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+
+            Text(item.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .frame(width: 142, alignment: .leading)
+
+            Text(item.artist.isEmpty ? item.subtitle : item.artist)
+                .font(.caption)
+                .foregroundStyle(MusikKuStyle.secondary)
+                .lineLimit(2)
+                .frame(width: 142, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var placeholder: some View {
+        RoundedRectangle(cornerRadius: 14)
+            .fill(MusikKuStyle.accent.opacity(0.16))
+            .overlay {
+                Image(systemName: item.kind == .artist ? "person.fill" : "music.note")
+                    .font(.title2)
+                    .foregroundStyle(MusikKuStyle.accent)
+            }
     }
 }

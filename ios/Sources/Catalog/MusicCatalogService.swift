@@ -116,6 +116,174 @@ actor MusicCatalogService {
         .uniqued(by: { "\($0.kind.rawValue):\($0.id)" })
     }
 
+    func homeFeed() async throws -> [CatalogHomeShelf] {
+        let locale = Locale.current
+        let language = locale.languageCode ?? "en"
+        let region = locale.regionCode ?? "US"
+        let clientVersion = await resolveClientVersion()
+
+        guard var components = URLComponents(string: "\(musicOrigin)/youtubei/v1/browse") else {
+            throw MusicCatalogError.invalidURL
+        }
+        components.queryItems = [
+            URLQueryItem(name: "prettyPrint", value: "false"),
+            URLQueryItem(name: "hl", value: language)
+        ]
+        guard let url = components.url else { throw MusicCatalogError.invalidURL }
+
+        let body: [String: Any] = [
+            "context": [
+                "client": [
+                    "clientName": "WEB_REMIX",
+                    "clientVersion": clientVersion,
+                    "hl": language,
+                    "gl": region
+                ],
+                "user": ["lockedSafetyMode": false],
+                "request": ["useSsl": true]
+            ],
+            "browseId": "FEmusic_home"
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 25
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(language, forHTTPHeaderField: "Accept-Language")
+        request.setValue(musicOrigin, forHTTPHeaderField: "Origin")
+        request.setValue(musicOrigin, forHTTPHeaderField: "X-Origin")
+        request.setValue("\(musicOrigin)/", forHTTPHeaderField: "Referer")
+        request.setValue("67", forHTTPHeaderField: "X-YouTube-Client-Name")
+        request.setValue(clientVersion, forHTTPHeaderField: "X-YouTube-Client-Version")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw MusicCatalogError.invalidResponse
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw MusicCatalogError.httpStatus(http.statusCode)
+        }
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw MusicCatalogError.invalidResponse
+        }
+        return parseHome(root)
+    }
+
+    private func parseHome(_ root: [String: Any]) -> [CatalogHomeShelf] {
+        guard
+            let tabs = Self.nested(root, "contents", "singleColumnBrowseResultsRenderer", "tabs") as? [Any],
+            let firstTab = tabs.first,
+            let sections = Self.nested(firstTab, "tabRenderer", "content", "sectionListRenderer", "contents") as? [Any]
+        else { return [] }
+
+        return sections.enumerated().compactMap { index, section in
+            if let carousel = Self.nested(section, "musicCarouselShelfRenderer") as? [String: Any] {
+                let header = Self.nested(carousel, "header", "musicCarouselShelfBasicHeaderRenderer")
+                let title = Self.runsText(Self.nested(header, "title"))
+                let subtitle = Self.runsText(Self.nested(header, "strapline"))
+                let content = carousel["contents"] as? [Any] ?? []
+                let items = content.compactMap { entry -> CatalogItem? in
+                    if let twoRow = Self.nested(entry, "musicTwoRowItemRenderer") as? [String: Any] {
+                        return parseTwoRowItem(twoRow)
+                    }
+                    if let responsive = Self.nested(entry, "musicResponsiveListItemRenderer") as? [String: Any] {
+                        return parseBrowseItem(responsive) ?? parseTrack(responsive)
+                    }
+                    return nil
+                }
+                guard !title.isEmpty, !items.isEmpty else { return nil }
+                return CatalogHomeShelf(title: title, subtitle: subtitle, items: items)
+            }
+
+            if let plain = Self.nested(section, "musicShelfRenderer") as? [String: Any] {
+                let title = Self.runsText(plain["title"])
+                let content = plain["contents"] as? [Any] ?? []
+                let items = content.compactMap { entry -> CatalogItem? in
+                    guard let row = Self.nested(entry, "musicResponsiveListItemRenderer") as? [String: Any] else {
+                        return nil
+                    }
+                    return parseTrack(row)
+                }
+                guard !items.isEmpty else { return nil }
+                return CatalogHomeShelf(
+                    title: title.isEmpty ? "Musik untuk kamu \(index + 1)" : title,
+                    subtitle: "",
+                    items: items
+                )
+            }
+            return nil
+        }
+    }
+
+    private func parseTwoRowItem(_ renderer: [String: Any]) -> CatalogItem? {
+        let title = Self.runsText(renderer["title"])
+        guard !title.isEmpty else { return nil }
+
+        let endpoint = Self.dictionary(renderer["navigationEndpoint"]) ?? [:]
+        let rawBrowseID = Self.string(Self.nested(endpoint, "browseEndpoint", "browseId"))
+        let resolvedBrowseID = rawBrowseID?.hasPrefix("MPED") == true ? nil : rawBrowseID
+        let videoID: String?
+        if let watchID = Self.string(Self.nested(endpoint, "watchEndpoint", "videoId")) {
+            videoID = watchID
+        } else if let rawBrowseID, rawBrowseID.hasPrefix("MPED") {
+            videoID = String(rawBrowseID.dropFirst(4))
+        } else {
+            videoID = nil
+        }
+        let subtitle = Self.runsText(renderer["subtitle"])
+        let pageType = Self.string(Self.nested(endpoint, "browseEndpoint", "browseEndpointContextSupportedConfigs", "browseEndpointContextMusicConfig", "pageType")) ?? ""
+
+        if pageType.contains("PODCAST") || subtitle.localizedCaseInsensitiveContains(" • Episode") {
+            return nil
+        }
+
+        let thumbnails = Self.nested(renderer, "thumbnailRenderer", "musicThumbnailRenderer", "thumbnail", "thumbnails") as? [[String: Any]] ?? []
+        let image = Self.bestThumbnailURL(thumbnails)
+        let isVideo = resolvedBrowseID == nil && videoID != nil && (
+            Self.thumbnailArrayIsWide(thumbnails) ||
+            (Self.string(renderer["aspectRatio"])?.contains("16_9") ?? false)
+        )
+
+        let kind: CatalogItemKind
+        if resolvedBrowseID != nil {
+            if pageType.contains("ALBUM") { kind = .album }
+            else if pageType.contains("ARTIST") { kind = .artist }
+            else if pageType.contains("PLAYLIST") { kind = .playlist }
+            else { kind = .other }
+        } else if isVideo {
+            kind = .video
+        } else {
+            kind = .song
+        }
+
+        guard let id = resolvedBrowseID ?? videoID else { return nil }
+        let parts = subtitle.components(separatedBy: " • ").filter { !$0.isEmpty }
+        let duration = parts.first(where: Self.isDuration).flatMap(Self.durationSeconds)
+        let artist = parts.first {
+            !["song", "video", "album", "single", "ep", "artist", "playlist", "episode"].contains($0.lowercased()) &&
+            !Self.isDuration($0) && !Self.isYear($0)
+        } ?? subtitle
+
+        return CatalogItem(
+            id: id,
+            kind: kind,
+            title: title,
+            subtitle: subtitle,
+            artist: artist,
+            artists: [],
+            albumName: kind == .album ? title : nil,
+            albumBrowseID: kind == .album ? resolvedBrowseID : nil,
+            browseID: resolvedBrowseID,
+            artworkURL: image,
+            durationSeconds: duration,
+            isExplicit: Self.containsExplicitBadge(renderer),
+            isVideo: isVideo
+        )
+    }
+
     private func resolveClientVersion() async -> String {
         if let cachedClientVersion { return cachedClientVersion }
 
@@ -263,10 +431,6 @@ actor MusicCatalogService {
         )
     }
 
-    private func resolveClientVersionUsingCachedValue() -> String {
-        cachedClientVersion ?? fallbackClientVersion
-    }
-
     private static func collectRenderers(_ root: Any, named target: String) -> [[String: Any]] {
         var result: [[String: Any]] = []
         func walk(_ value: Any) {
@@ -305,6 +469,22 @@ actor MusicCatalogService {
             return (name, string(nested(browse, "browseId")))
         }
         return nil
+    }
+
+    private static func bestThumbnailURL(_ thumbnails: [[String: Any]]) -> URL? {
+        let best = thumbnails.max {
+            let left = (($0["width"] as? Int) ?? 0) * (($0["height"] as? Int) ?? 0)
+            let right = (($1["width"] as? Int) ?? 0) * (($1["height"] as? Int) ?? 0)
+            return left < right
+        }
+        return (best?["url"] as? String).flatMap(URL.init(string:))
+    }
+
+    private static func thumbnailArrayIsWide(_ thumbnails: [[String: Any]]) -> Bool {
+        guard let first = thumbnails.first else { return false }
+        let width = first["width"] as? Double ?? Double(first["width"] as? Int ?? 0)
+        let height = first["height"] as? Double ?? Double(first["height"] as? Int ?? 0)
+        return height > 0 && width / height > 1.25
     }
 
     private static func thumbnailURL(_ renderer: [String: Any]) -> URL? {

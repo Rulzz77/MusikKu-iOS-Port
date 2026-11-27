@@ -79,3 +79,14 @@ struct CatalogItem: Identifiable, Hashable {
         )
     }
 }
+
+
+struct CatalogHomeShelf: Identifiable, Hashable {
+    let title: String
+    let subtitle: String
+    let items: [CatalogItem]
+
+    var id: String {
+        "\(title)|\(items.first?.id ?? "empty")"
+    }
+}
