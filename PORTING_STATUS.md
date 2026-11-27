@@ -7,6 +7,7 @@ Implemented in the current development branch:
 - Combined floating material dock with mini-player transport controls and main-tab navigation.
 - Android-aligned dark palette and mood/genre Explore grid sourced from `FEmusic_moods_and_genres`.
 - Local listening history with play counts and a Mix queue ranked by frequently played tracks.
+- Saved local Smart Playlist rules with dynamic results based on minimum play count, optional artist filter, and most-played/recently-played ordering.
 - Persistent local playlists and favorites using versioned UserDefaults JSON keys.
 - Playlist detail can queue tracks and remove items when a track has a resolved stream.
 - AVPlayer queue foundation: play a queue, enqueue, remove a queue item, next, previous, shuffle, repeat-one, and automatic advance.
@@ -33,10 +34,10 @@ Implemented in the current development branch:
 Still not integrated or not fully verified:
 - WKWebView BotGuard initialization and token-provider code compile successfully in iOS CI. Live challenge execution, PoToken generation, attestation-gated stream extraction, and audible playback still require runtime verification; YouTube can change its challenge protocol.
 - Authenticated Google/YouTube account sessions, account/channel switching, account likes, and server-synced playlists.
-- Browse-detail and mood/genre-category continuation paging; deeper nested browse parity is still incomplete.
+- Deeper nested browse parity, continuation for shelves inside complex artist pages, and continuation edge-case compatibility still need live-response testing.
 - Other Android catalogue/add-on sources such as JioSaavn and custom modules.
 - Lyrics translation, local TTML import/export, provider settings, and more Android lyric-source parity.
-- Download manager, offline audio, remote recommendations, advanced smart playlists, and cross-device sync. The current Mix is local and ranked by play count.
+- Download manager, offline audio, remote recommendations, full Android Smart Playlist rule parity (genre/year/duration/time-window/ALL-ANY filters), and cross-device sync. Smart Mix on iOS currently supports minimum plays, an optional artist filter, and sorting.
 - Native DSP, equalizer, crossfade, advanced codecs, USB audio, and specialized device-routing parity.
 - TestFlight or App Store release signing.
 

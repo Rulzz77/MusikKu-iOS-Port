@@ -5,6 +5,7 @@ struct LibraryView: View {
     @EnvironmentObject private var playback: PlaybackManager
     @State private var section: LibrarySection = .playlists
     @State private var showingCreatePlaylist = false
+    @State private var showingCreateSmartPlaylist = false
     @State private var playlistName = ""
     let onSearch: () -> Void
 
@@ -15,6 +16,7 @@ struct LibraryView: View {
                     Text("Playlist").tag(LibrarySection.playlists)
                     Text("Disukai").tag(LibrarySection.favorites)
                     Text("Riwayat").tag(LibrarySection.history)
+                    Text("Mix").tag(LibrarySection.smartMix)
                 }
                 .pickerStyle(.segmented)
 
@@ -25,6 +27,8 @@ struct LibraryView: View {
                     favoriteContent
                 case .history:
                     historyContent
+                case .smartMix:
+                    smartMixContent
                 }
             }
             .padding(.horizontal, 16)
@@ -48,6 +52,15 @@ struct LibraryView: View {
                         }
                         .accessibilityLabel("Buat playlist")
                     }
+                } else if section == .smartMix {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingCreateSmartPlaylist = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel("Buat Mix Cerdas")
+                    }
                 }
             }
             .alert("Buat playlist baru", isPresented: $showingCreatePlaylist) {
@@ -61,6 +74,18 @@ struct LibraryView: View {
                 }
             } message: {
                 Text("Playlist disimpan secara lokal di perangkat ini.")
+            }
+            .sheet(isPresented: $showingCreateSmartPlaylist) {
+                SmartPlaylistEditorSheet { name, artist, minimumPlays, sort in
+                    _ = library.createSmartPlaylist(
+                        name: name,
+                        artistContains: artist,
+                        minimumPlays: minimumPlays,
+                        sort: sort
+                    )
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
             }
         }
     }
@@ -193,6 +218,71 @@ struct LibraryView: View {
         }
     }
 
+    @ViewBuilder
+    private var smartMixContent: some View {
+        if library.smartPlaylists.isEmpty {
+            emptyState(
+                symbol: "sparkles",
+                title: "Belum ada Mix Cerdas",
+                message: "Buat aturan sederhana agar MusikKu menyusun playlist dari lagu yang sering kamu dengarkan.",
+                actionTitle: "Buat Mix Cerdas"
+            ) {
+                showingCreateSmartPlaylist = true
+            }
+        } else {
+            List {
+                ForEach(library.smartPlaylists) { rule in
+                    let tracks = library.tracks(for: rule)
+                    Button {
+                        guard !tracks.isEmpty else { return }
+                        playback.playQueue(tracks)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "waveform.path")
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(MusikKuStyle.accent)
+                                .frame(width: 48, height: 48)
+                                .background(MusikKuStyle.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 13))
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(rule.name)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                Text(smartPlaylistDescription(rule, trackCount: tracks.count))
+                                    .font(.caption)
+                                    .foregroundStyle(MusikKuStyle.secondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "play.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(tracks.isEmpty ? MusikKuStyle.secondary : MusikKuStyle.accent)
+                        }
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(tracks.isEmpty)
+                    .listRowBackground(MusikKuStyle.surface)
+                    .swipeActions {
+                        Button(role: .destructive) {
+                            library.deleteSmartPlaylist(id: rule.id)
+                        } label: {
+                            Label("Hapus", systemImage: "trash")
+                        }
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    private func smartPlaylistDescription(_ rule: MusicSmartPlaylistRule, trackCount: Int) -> String {
+        let artistText = rule.artistContains.isEmpty ? "Semua artis" : "Artis: \(rule.artistContains)"
+        return "\(trackCount) lagu • \(artistText) • Minimal \(rule.minimumPlays)× • \(rule.sort.title)"
+    }
+
     private func emptyState(
         symbol: String,
         title: String,
@@ -233,6 +323,63 @@ private enum LibrarySection: Hashable {
     case playlists
     case favorites
     case history
+    case smartMix
+}
+
+
+private struct SmartPlaylistEditorSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var artist = ""
+    @State private var minimumPlays = 2
+    @State private var sort: MusicSmartPlaylistSort = .mostPlayed
+
+    let onSave: (String, String, Int, MusicSmartPlaylistSort) -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Nama Mix") {
+                    TextField("Contoh: Lagu yang paling sering didengar", text: $name)
+                        .textInputAutocapitalization(.sentences)
+                }
+
+                Section("Aturan") {
+                    TextField("Filter artis (opsional)", text: $artist)
+                        .textInputAutocapitalization(.words)
+                    Stepper("Minimal diputar: \(minimumPlays)×", value: $minimumPlays, in: 1...50)
+                    Picker("Urutan", selection: $sort) {
+                        ForEach(MusicSmartPlaylistSort.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                }
+
+                Section {
+                    Text("Hasil Mix akan berubah otomatis mengikuti riwayat pemutaran lokal di perangkat ini.")
+                        .font(.footnote)
+                        .foregroundStyle(MusikKuStyle.secondary)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(MusikKuStyle.background)
+            .navigationTitle("Mix Cerdas Baru")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Batal") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Simpan") {
+                        onSave(name, artist, minimumPlays, sort)
+                        dismiss()
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
 }
 
 private struct PlaylistDetailView: View {

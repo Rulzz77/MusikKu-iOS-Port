@@ -23,18 +23,57 @@ struct MusicListeningEntry: Identifiable, Codable, Hashable {
     var id: String { track.id }
 }
 
+
+enum MusicSmartPlaylistSort: String, Codable, CaseIterable, Identifiable {
+    case mostPlayed
+    case recentlyPlayed
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .mostPlayed: return "Paling sering diputar"
+        case .recentlyPlayed: return "Terbaru diputar"
+        }
+    }
+}
+
+struct MusicSmartPlaylistRule: Identifiable, Codable, Hashable {
+    let id: UUID
+    var name: String
+    var artistContains: String
+    var minimumPlays: Int
+    var sort: MusicSmartPlaylistSort
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        artistContains: String = "",
+        minimumPlays: Int = 1,
+        sort: MusicSmartPlaylistSort = .mostPlayed
+    ) {
+        self.id = id
+        self.name = name
+        self.artistContains = artistContains
+        self.minimumPlays = minimumPlays
+        self.sort = sort
+    }
+}
+
 @MainActor
 final class MusicLibraryStore: ObservableObject {
     @Published private(set) var favorites: [MusicTrack] = []
     @Published private(set) var playlists: [MusicPlaylist] = []
     @Published private(set) var listeningHistory: [MusicListeningEntry] = []
     @Published private(set) var recentSearches: [String] = []
+    @Published private(set) var smartPlaylists: [MusicSmartPlaylistRule] = []
 
     private let defaults: UserDefaults
     private let favoritesKey = "musikku.library.favorites.v1"
     private let playlistsKey = "musikku.library.playlists.v1"
     private let historyKey = "musikku.library.history.v1"
     private let searchHistoryKey = "musikku.library.search-history.v1"
+    private let smartPlaylistsKey = "musikku.library.smart-playlists.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -57,6 +96,11 @@ final class MusicLibraryStore: ObservableObject {
         if let data = defaults.data(forKey: searchHistoryKey),
            let saved = try? JSONDecoder().decode([String].self, from: data) {
             recentSearches = saved
+        }
+
+        if let data = defaults.data(forKey: smartPlaylistsKey),
+           let saved = try? JSONDecoder().decode([MusicSmartPlaylistRule].self, from: data) {
+            smartPlaylists = Array(saved.prefix(20))
         }
     }
 
@@ -101,6 +145,67 @@ final class MusicLibraryStore: ObservableObject {
     func clearHistory() {
         listeningHistory = []
         persist()
+    }
+
+    /// Builds a smart playlist dynamically from the local listening statistics.
+    func tracks(for rule: MusicSmartPlaylistRule) -> [MusicTrack] {
+        let artistQuery = rule.artistContains.trimmingCharacters(in: .whitespacesAndNewlines)
+        let matching = listeningHistory.filter { entry in
+            entry.playCount >= rule.minimumPlays &&
+            (artistQuery.isEmpty || entry.track.artist.localizedCaseInsensitiveContains(artistQuery))
+        }
+
+        let sorted: [MusicListeningEntry]
+        switch rule.sort {
+        case .mostPlayed:
+            sorted = matching.sorted {
+                if $0.playCount == $1.playCount {
+                    return $0.lastPlayedAt > $1.lastPlayedAt
+                }
+                return $0.playCount > $1.playCount
+            }
+        case .recentlyPlayed:
+            sorted = matching.sorted { $0.lastPlayedAt > $1.lastPlayedAt }
+        }
+        return sorted.map(\.track)
+    }
+
+    @discardableResult
+    func createSmartPlaylist(
+        name rawName: String,
+        artistContains rawArtist: String,
+        minimumPlays: Int,
+        sort: MusicSmartPlaylistSort
+    ) -> Bool {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let artist = rawArtist.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name.count <= 40,
+              artist.count <= 80,
+              minimumPlays in 1...50,
+              smartPlaylists.count < 20 else { return false }
+
+        smartPlaylists.insert(
+            MusicSmartPlaylistRule(
+                name: name,
+                artistContains: artist,
+                minimumPlays: minimumPlays,
+                sort: sort
+            ),
+            at: 0
+        )
+        persistSmartPlaylists()
+        return true
+    }
+
+    func deleteSmartPlaylist(id: UUID) {
+        smartPlaylists.removeAll { $0.id == id }
+        persistSmartPlaylists()
+    }
+
+    private func persistSmartPlaylists() {
+        if let data = try? JSONEncoder().encode(smartPlaylists) {
+            defaults.set(data, forKey: smartPlaylistsKey)
+        }
     }
 
     func recordSearch(_ rawQuery: String) {
