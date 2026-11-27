@@ -134,6 +134,7 @@ final class PlaybackManager: ObservableObject {
         }
 
         guard let nextIndex else {
+            seek(to: 0)
             pause()
             return
         }
@@ -164,11 +165,16 @@ final class PlaybackManager: ObservableObject {
     }
 
     private func handleTrackEnded() {
-        if isRepeatEnabled {
-            seek(to: 0)
-            resume()
-        } else {
+        guard isRepeatEnabled, let player else {
             playNext()
+            return
+        }
+
+        player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+            guard finished else { return }
+            Task { @MainActor in
+                self?.resume()
+            }
         }
     }
 
