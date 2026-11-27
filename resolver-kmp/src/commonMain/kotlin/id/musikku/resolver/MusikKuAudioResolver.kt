@@ -103,7 +103,8 @@ class MusikKuAudioResolver {
         val hints = ContentHints(wantVideo = false).withStreamCapabilities(
             allowHls = false,
             allowSabr = false,
-            allowBoundedRange = true
+            allowBoundedRange = true,
+            allowProgressive = false
         )
 
         val excludedClients = failedStreamClients(videoId)

@@ -23,15 +23,13 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Use the exact resolver version already used by MusikKu Android.
-            implementation("com.github.MetrolistGroup.innertubex:innertubex:v0.7.0")
-            // InnerTubeX v0.7.0 requests QuickJS 1.0.14 transitively. Override it with
-            // the upstream release that pins the native iOS deployment target.
-            implementation("io.github.dokar3:quickjs-kt:1.0.18")
+            // iOS uses the current shared resolver to pick up native cipher and stream fixes.
+            // Android's app repository remains unchanged.
+            implementation("com.github.MetrolistGroup.innertubex:innertubex:v0.13.2")
         }
 
         iosMain.dependencies {
-            implementation("io.ktor:ktor-client-darwin:3.5.2")
+            implementation("io.ktor:ktor-client-darwin:3.6.0")
         }
     }
 }
