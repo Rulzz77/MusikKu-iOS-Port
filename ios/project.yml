@@ -18,6 +18,8 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+    resources:
+      - path: Support/LaunchScreen.storyboard
     info:
       path: Support/Info.plist
     dependencies:
