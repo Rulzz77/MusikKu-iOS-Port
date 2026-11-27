@@ -1,13 +1,13 @@
 package id.musikku.resolver
 
 import com.metrolist.innertubex.InnerTube
-import com.metrolist.innertubex.cipher.PlayerConfigRepository
 import com.metrolist.innertubex.cipher.RemotePlayerConfigStore
 import com.metrolist.innertubex.cipher.YouTubeCipherService
 import com.metrolist.innertubex.extraction.AudioQuality
 import com.metrolist.innertubex.extraction.ContentHints
 import com.metrolist.innertubex.extraction.InnerTubeExtractor
 import com.metrolist.innertubex.extraction.YtConfigParserImpl
+import com.metrolist.innertubex.extraction.generateClientPlaybackNonce
 import com.metrolist.innertubex.models.YouTubeLocale
 import io.ktor.client.HttpClient
 import kotlinx.serialization.encodeToString
@@ -17,13 +17,17 @@ import kotlinx.serialization.json.Json
  * Audio-only resolver shared with the Android MusikKu implementation through
  * the same InnerTubeX KMP library version. SABR and HLS are intentionally
  * disabled because AVPlayer consumes direct HTTP audio assets.
+ *
+ * Remote player configs are cached persistently on iOS so cipher changes can
+ * be refreshed without requiring an app update. This resolver still has no
+ * browser-backed PoToken provider; attestation-gated streams may be refused.
  */
 class MusikKuAudioResolver {
     private val httpClient: HttpClient = createResolverHttpClient()
     private val innerTube = InnerTube(httpClient)
     private val configStore = RemotePlayerConfigStore(
         httpClient = httpClient,
-        repository = PlayerConfigRepository.disabled()
+        repository = PlatformPlayerConfigRepository()
     )
     private val cipherService = YouTubeCipherService(httpClient, configStore)
     private val configParser = YtConfigParserImpl(httpClient, innerTube, configStore)
@@ -34,12 +38,12 @@ class MusikKuAudioResolver {
     )
 
     /**
-     * Resolves a YouTube Music video ID to a direct audio URL and the request
-     * headers required by its selected playback client.
+     * Resolves a YouTube Music video ID to a direct HTTPS audio URL and the
+     * request headers required by its selected playback client.
      *
      * This method does not use an account cookie and does not mint a PoToken.
-     * When YouTube requires a platform attestation token, the resolver can
-     * return null; the iOS host must then show a retry/unsupported message.
+     * When YouTube requires a platform attestation token, extraction can fail;
+     * the iOS host must then show a retry/unsupported message.
      */
     @Throws(Exception::class)
     suspend fun resolve(
@@ -72,7 +76,8 @@ class MusikKuAudioResolver {
         val stream = extractor.extract(
             videoId = videoId,
             hints = hints,
-            audioQuality = audioQuality
+            audioQuality = audioQuality,
+            clientPlaybackNonce = generateClientPlaybackNonce()
         ) ?: return null
 
         val url = stream.audioUrl
