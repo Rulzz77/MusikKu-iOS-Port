@@ -203,7 +203,7 @@ private struct PlaylistDetailView: View {
                             .font(.system(size: 36))
                             .foregroundStyle(MusikKuStyle.accent)
                         Text("Playlist masih kosong").font(.headline)
-                        Text("Lagu dapat ditambahkan setelah katalog musik terhubung.")
+                        Text("Tambahkan lagu dari hasil pencarian, lalu tekan lagu untuk memutarnya.")
                             .font(.subheadline)
                             .foregroundStyle(MusikKuStyle.secondary)
                             .multilineTextAlignment(.center)
