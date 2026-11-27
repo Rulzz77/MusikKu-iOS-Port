@@ -163,10 +163,10 @@ struct NowPlayingView: View {
                 .accessibilityLabel(library.isFavorite(track) ? "Hapus dari lagu disukai" : "Tambahkan ke lagu disukai")
             }
 
-            if playback.isResolving {
+            if playback.isResolving || playback.isBuffering {
                 HStack(spacing: 9) {
                     ProgressView().tint(MusikKuStyle.accent)
-                    Text("Mengambil stream audio…")
+                    Text(playback.isResolving ? "Mengambil stream audio…" : "Memuat audio…")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(MusikKuStyle.secondary)
                     Spacer()
