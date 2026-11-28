@@ -33,7 +33,7 @@ struct FloatingMusicDock: View {
     let onOpenPlayer: () -> Void
 
     var body: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: 6) {
             if let track = playback.currentTrack {
                 nowPlayingAccessory(track)
                 Rectangle()
@@ -47,16 +47,16 @@ struct FloatingMusicDock: View {
                     Button {
                         onSelectTab(tab)
                     } label: {
-                        VStack(spacing: 5) {
+                        VStack(spacing: 4) {
                             Image(systemName: tab.symbol)
-                                .font(.system(size: 17, weight: .semibold))
-                                .frame(height: 20)
+                                .font(.system(size: 16, weight: .semibold))
+                                .frame(height: 18)
                             Text(tab.title)
                                 .font(.system(size: 10, weight: .semibold))
                         }
                         .foregroundStyle(selectedTab == tab ? .white : MusikKuStyle.secondary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                         .background {
                             if selectedTab == tab {
                                 RoundedRectangle(cornerRadius: 17, style: .continuous)
@@ -76,8 +76,8 @@ struct FloatingMusicDock: View {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.top, 10)
-        .padding(.bottom, 7)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
         .frame(maxWidth: 560)
         .background {
             RoundedRectangle(cornerRadius: 29, style: .continuous)
