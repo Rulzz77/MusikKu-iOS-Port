@@ -68,7 +68,7 @@ struct NowPlayingView: View {
             ScrollView(.vertical) {
                 Group {
                 if let track = playback.currentTrack {
-                    playerContent(for: track, availableWidth: geometry.size.width)
+                    playerContent(for: track, availableWidth: geometry.size.width, availableHeight: geometry.size.height)
                 } else {
                     emptyState(
                         title: "Belum ada lagu",
@@ -108,8 +108,10 @@ struct NowPlayingView: View {
         }
     }
 
-    private func playerContent(for track: MusicTrack, availableWidth: CGFloat) -> some View {
-        VStack(spacing: 18) {
+    private func playerContent(for track: MusicTrack, availableWidth: CGFloat, availableHeight: CGFloat) -> some View {
+        let artworkSide = min(min(max(availableWidth - 48, 160), 320), max(160, availableHeight * 0.31))
+
+        return VStack(spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("SEDANG DIPUTAR")
@@ -142,15 +144,11 @@ struct NowPlayingView: View {
                 }
                 .accessibilityLabel("Buka antrean lagu")
             }
-            .padding(.top, 12)
+             .padding(.top, 8)
 
-            Spacer(minLength: 0)
-
-            ArtworkView(track: track, cornerRadius: 24)
-                .frame(
-                    width: min(max(availableWidth - 52, 176), 320),
-                    height: min(max(availableWidth - 52, 180), 340)
-                )
+            ArtworkView(track: track, cornerRadius: 22)
+                .frame(width: artworkSide, height: artworkSide)
+                .frame(maxWidth: .infinity)
                 .shadow(color: .black.opacity(0.35), radius: 24, y: 12)
 
             HStack(spacing: 12) {
@@ -171,6 +169,13 @@ struct NowPlayingView: View {
                         Text(album)
                             .font(.caption)
                             .foregroundStyle(MusikKuStyle.secondary)
+                            .lineLimit(1)
+                    }
+                    if let status = playback.playbackStatusMessage, playback.errorMessage == nil {
+                        Text(status)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(playback.isResolving || playback.isBuffering ? MusikKuStyle.accent : MusikKuStyle.secondary)
+                            .lineLimit(2)
                     }
                 }
 
@@ -302,16 +307,34 @@ struct NowPlayingView: View {
             .foregroundStyle(MusikKuStyle.secondary)
 
             if let error = playback.errorMessage {
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("Pemutaran belum berhasil", systemImage: "exclamationmark.triangle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.orange)
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(MusikKuStyle.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        playback.togglePlayback()
+                    } label: {
+                        Label("Coba putar lagi", systemImage: "arrow.clockwise")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(MusikKuStyle.accent.opacity(0.2), in: RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(MusikKuStyle.surface, in: RoundedRectangle(cornerRadius: 16))
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 4)
         }
-        .padding(.horizontal, 22)
-        .padding(.bottom, 16)
+        .padding(.horizontal, 18)
+        .padding(.bottom, 20)
     }
 
     private func emptyState(title: String, message: String, symbol: String) -> some View {
