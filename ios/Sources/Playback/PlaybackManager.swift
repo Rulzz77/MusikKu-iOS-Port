@@ -478,7 +478,13 @@ final class PlaybackManager: ObservableObject {
                 }
 
                 let headerData = Data(resolved.headersJson.utf8)
-                let headers = (try? JSONSerialization.jsonObject(with: headerData)) as? [String: String] ?? [:]
+                guard let headers = (try? JSONSerialization.jsonObject(with: headerData)) as? [String: String] else {
+                    throw NSError(
+                        domain: "MusikKuAudioResolver",
+                        code: 423,
+                        userInfo: [NSLocalizedDescriptionKey: "Metadata header stream dari penyedia tidak valid."]
+                    )
+                }
                 self.resolvedStreamInfo = [
                     resolved.clientName,
                     resolved.mimeType ?? "format tidak diketahui"
@@ -498,7 +504,9 @@ final class PlaybackManager: ObservableObject {
                 self.resolveTask = nil
                 self.isResolving = false
                 self.isPlaying = false
-                self.errorMessage = "Gagal mengambil stream audio: \(MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Penyedia musik tidak dapat menyiapkan audio saat ini."))"
+                let technicalError = error as NSError
+                let technicalCode = "\(technicalError.domain.prefix(48)) (\(technicalError.code))"
+                self.errorMessage = "Gagal mengambil stream audio: \(MusikKuErrorMessage.indonesianMessage(for: error, fallback: "Penyedia musik tidak dapat menyiapkan audio saat ini."))\nDetail: \(technicalCode)"
                 self.playbackStatusMessage = self.errorMessage
                 self.updateNowPlaying()
             }
@@ -550,7 +558,12 @@ final class PlaybackManager: ObservableObject {
 
         itemStatusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] observedItem, _ in
             guard observedItem.status == .failed else { return }
-            let message = observedItem.error.map { MusikKuErrorMessage.indonesianMessage(for: $0, fallback: "Sumber audio tidak dapat diputar.") } ?? "Sumber audio tidak dapat diputar."
+            let itemError = observedItem.error
+            let message = itemError.map { MusikKuErrorMessage.indonesianMessage(for: $0, fallback: "Sumber audio tidak dapat diputar.") } ?? "Sumber audio tidak dapat diputar."
+            let technicalCode = itemError.map {
+                let nsError = $0 as NSError
+                return "\(nsError.domain.prefix(48)) (\(nsError.code))"
+            }
             Task { @MainActor in
                 guard let self else { return }
                 if let failedProfileID = resolvedProfileID,
@@ -562,7 +575,8 @@ final class PlaybackManager: ObservableObject {
                 }
                 guard self.player?.currentItem === observedItem,
                       self.currentTrack?.id == track.id else { return }
-                self.errorMessage = "Pemutaran gagal: \(message)"
+                let detail = technicalCode.map { "\nDetail: \($0)" } ?? ""
+                self.errorMessage = "Pemutaran gagal: \(message)\(detail)"
                 self.playbackStatusMessage = self.errorMessage
                 self.isPlaying = false
                 self.isBuffering = false
