@@ -531,7 +531,9 @@ final class PlaybackManager: ObservableObject {
             : ["AVURLAssetHTTPHeaderFieldsKey": headers]
         let asset = AVURLAsset(url: url, options: assetOptions)
         let item = AVPlayerItem(asset: asset)
+        item.preferredForwardBufferDuration = 6
         let nextPlayer = AVPlayer(playerItem: item)
+        nextPlayer.automaticallyWaitsToMinimizeStalling = true
         nextPlayer.volume = sleepTimerOriginalVolume
         player = nextPlayer
         attachTimeObserver(to: nextPlayer)
@@ -571,7 +573,7 @@ final class PlaybackManager: ObservableObject {
 
         // Distinguish an active playback request from actual network buffering.
         // Keep the pause intent visible while AVPlayer waits for bytes to arrive.
-        timeControlObservation = nextPlayer.observe(\.timeControlStatus, options: [.new]) { [weak self, weak nextPlayer] observedPlayer, _ in
+        timeControlObservation = nextPlayer.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self, weak nextPlayer] observedPlayer, _ in
             guard let nextPlayer else { return }
             Task { @MainActor in
                 guard let self, self.player === nextPlayer else { return }
